@@ -333,7 +333,7 @@ wheels = [
 
 [[package]]
 name = "lemonade"
-version = "0.1.0"
+version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "lemonade-sdk", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },

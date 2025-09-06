@@ -3,7 +3,9 @@
 Description=Lemonade Server (llama.cpp Vulkan via uv)
 Wants=network-online.target
 After=network-online.target
-ConditionPathExists=/dev/dri
+
+# Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
+ConditionPathExists=/dev/dri/renderD128
 
 [Container]
 ContainerName=lemonade
@@ -15,11 +17,20 @@ Pull=always
 
 PublishPort=8000:8000
 
-Volume=lemonade.volume:/root/.cache:Z
+# Persist model/cache
+Volume=lemonade.volume:/home/ubuntu/.cache:Z
 Network=lemonade.network
 
-# Pass AMD GPU nodes
-PodmanArgs=--device /dev/kfd --device /dev/dri
+# Minimal device mapping for Vulkan
+PodmanArgs=--device /dev/dri/renderD128
+
+# Keep your UID/GID + supplemental groups (render,video) so device ACLs work
+# Host user must be in groups render and user
+UserNS=keep-id
+GroupAdd=keep-groups
+
+Environment=LEMONADE_LLAMACPP=vulkan
+Environment=LEMONADE_HOST=0.0.0.0
 
 # Health check
 HealthCmd=curl -sf http://localhost:8000/api/v1/health || exit 1
