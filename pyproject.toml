@@ -1,0 +1,16 @@
+[project]
+name = "lemonade"
+version = "1.0.0"
+description = "Lemonade LLM Server with required environment for running in a Linux x86_64 context (including containers)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "lemonade-sdk>=8.1.8",
+]
+
+[tool.uv]
+# Limit what platforms uv resolves for:
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+# And require wheels to exist for those envs (avoids picking win-only wheels):
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
