@@ -29,17 +29,50 @@ OpenAI-compatible API is available at `http://localhost:8000/api/v1/`.
 ### Quadlet (Fedora)
 
 The quadlet configuration uses a published image (ghcr) by default.
-For the local image, adjust the Image line in `quadlets/lemonade.container`:
+For the local image, adjust the Image line in `quadlets/lemonade@.container`:
 
 ```
 mkdir -p ~/.config/containers/systemd
-cp quadlets/lemonade.* ~/.config/containers/systemd/
+cp quadlets/lemonade* ~/.config/containers/systemd/
 systemctl --user daemon-reload
 systemctl --user start lemonade.service
 systemctl --user status lemonade.service
 ```
 
 `podman ps` should show the container running. Visit `http://localhost:8000/` in browser for Lemonade GUI.
+
+### Running With a Specific Model Pre-loaded
+
+**Start with a specific model:**
+```bash
+systemctl --user start lemonade@Gemma-3-4b-it-GGUF.service
+systemctl --user start lemonade@Qwen3-4B-GGUF.service
+```
+
+**Start without specifying a model (uses default behavior):**
+```bash
+systemctl --user start lemonade.service
+```
+
+**Check status of specific model instances:**
+```bash
+systemctl --user status lemonade@Gemma-3-4b-it-GGUF.service
+systemctl --user status lemonade@Qwen3-4B-GGUF.service
+```
+
+**Stop specific model instances:**
+```bash
+systemctl --user stop lemonade@Gemma-3-4b-it-GGUF.service
+systemctl --user stop lemonade@Qwen3-4B-GGUF.service
+```
+
+**View logs for specific models:**
+```bash
+journalctl --user -xeu lemonade@Gemma-3-4b-it-GGUF.service
+journalctl --user -xeu lemonade@Qwen3-4B-GGUF.service
+```
+
+All instances run on port 8000. For multiple model instances, consider using a reverse proxy to route different paths or subdomains to different model instances.
 
 ### Runtime Requirements
 

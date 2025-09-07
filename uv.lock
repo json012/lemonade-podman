@@ -340,11 +340,11 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.1.7" }]
+requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.1.8" }]
 
 [[package]]
 name = "lemonade-sdk"
-version = "8.1.7"
+version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -371,9 +371,9 @@ dependencies = [
     { name = "wmi", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "zstandard", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/78/2d6b2851da34d8ef4842f9a4c89aeaac845689472565b90323edfff14bfd/lemonade_sdk-8.1.7.tar.gz", hash = "sha256:d48b445d63715f47f73a477f5f6ad204609d82da8f0b308f7bd4610f69afc3ae", size = 259490, upload-time = "2025-08-23T15:59:09.839Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/aa/5b669e6691f169319566e42a23fea959c423b4ab331e32f22d6fe833ac0f/lemonade_sdk-8.1.8.tar.gz", hash = "sha256:3397b084a2259babd78b16e82a8e28cf54d9329942d990baed041d87513abf37", size = 255554, upload-time = "2025-09-03T18:54:59.904Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/72/7b261cf904e9a1ca71e9e7ff1b6693944a465b3d1f7b32a3ec75b233e88e/lemonade_sdk-8.1.7-py3-none-any.whl", hash = "sha256:b1de4b3af10cc0ae8bab74104f8d49f50f63cd67100b26ae2fa4c92ed4956cd5", size = 283881, upload-time = "2025-08-23T15:59:08.429Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/b1/d6fcedb8a8c1305f9f8a92a93617a191aff2475fc90fc7f2614261173c4a/lemonade_sdk-8.1.8-py3-none-any.whl", hash = "sha256:02a582d7b700d99430c6193d9e4db73d2330f575c9495f1e957b48a3e2ef03df", size = 279019, upload-time = "2025-09-03T18:54:58.475Z" },
 ]
 
 [[package]]

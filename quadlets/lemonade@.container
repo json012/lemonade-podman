@@ -15,6 +15,7 @@ ContainerName=lemonade
 Image=ghcr.io/json012/lemonade:latest
 Pull=always
 
+# Dynamic port mapping - uses %I parameter or defaults to 8000
 PublishPort=8000:8000
 
 # Persist model/cache
@@ -31,6 +32,13 @@ GroupAdd=keep-groups
 
 Environment=LEMONADE_LLAMACPP=vulkan
 Environment=LEMONADE_HOST=0.0.0.0
+Environment=LEMONADE_CACHE=/home/ubuntu/.cache
+
+# Allow specifying model via instance parameter
+# Usage: systemctl --user start lemonade@Qwen3-4B-GGUF.service
+# %i = model name (e.g., "Qwen3-4B-GGUF")
+# If no instance name is provided, the default CMD from Dockerfile will be used
+Exec=/bin/bash -c 'if [ -n "%i" ]; then echo "Starting with model=%i"; uv run lemonade-server-dev run "%i" --llamacpp vulkan; else uv run lemonade-server-dev serve --llamacpp vulkan; fi'
 
 # Health check
 HealthCmd=curl -sf http://localhost:8000/api/v1/health || exit 1
