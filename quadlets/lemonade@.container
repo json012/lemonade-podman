@@ -13,7 +13,7 @@ ContainerName=lemonade
 # Uses published image by default. Change to `Image=localhost/lemonade:latest` for local image instead.
 # Image=localhost/lemonade:latest
 Image=ghcr.io/json012/lemonade:latest
-Pull=always
+Pull=newer
 
 # Dynamic port mapping - uses %I parameter or defaults to 8000
 PublishPort=8000:8000
