@@ -5,7 +5,7 @@ description = "Lemonade LLM Server with required environment for running in a Li
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "lemonade-sdk>=8.1.8",
+    "lemonade-sdk>=8.1.10",
 ]
 
 [tool.uv]

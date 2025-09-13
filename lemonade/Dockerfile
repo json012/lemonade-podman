@@ -1,3 +1,4 @@
+# Same base image as official llama.cpp
 FROM ubuntu:24.04
 
 # Install system dependencies including Vulkan support

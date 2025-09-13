@@ -340,11 +340,11 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.1.8" }]
+requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.1.10" }]
 
 [[package]]
 name = "lemonade-sdk"
-version = "8.1.8"
+version = "8.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -368,12 +368,11 @@ dependencies = [
     { name = "transformers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typeguard", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "uvicorn", extra = ["standard"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "wmi", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "zstandard", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/aa/5b669e6691f169319566e42a23fea959c423b4ab331e32f22d6fe833ac0f/lemonade_sdk-8.1.8.tar.gz", hash = "sha256:3397b084a2259babd78b16e82a8e28cf54d9329942d990baed041d87513abf37", size = 255554, upload-time = "2025-09-03T18:54:59.904Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/38/4f8ea6dd7948cd8afe0f213f30e9cb2c9811804c826d20c81942de4dc88c/lemonade_sdk-8.1.10.tar.gz", hash = "sha256:3c29ba2b12309e11a530dad37c7fc0eb5536fa38a00052024901745ef7c0931e", size = 268922, upload-time = "2025-09-12T15:21:36.239Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/b1/d6fcedb8a8c1305f9f8a92a93617a191aff2475fc90fc7f2614261173c4a/lemonade_sdk-8.1.8-py3-none-any.whl", hash = "sha256:02a582d7b700d99430c6193d9e4db73d2330f575c9495f1e957b48a3e2ef03df", size = 279019, upload-time = "2025-09-03T18:54:58.475Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/d6/bb6d111116d0a6b8d40a2cb97130fb152bf65542716d6faf07f3ae65d606/lemonade_sdk-8.1.10-py3-none-any.whl", hash = "sha256:36e3c979d3d7e6ff5fc15211332aefbef4bc9d411bcc51ebb0178e182ed63c36", size = 296650, upload-time = "2025-09-12T15:21:34.743Z" },
 ]
 
 [[package]]
@@ -927,12 +926,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2b/fb/c492d6daa5ec067c2988ac80c61359ace5c4c674c532985ac5a123436cec/websockets-15.0.1-pp310-pypy310_pp73-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b359ed09954d7c18bbc1680f380c7301f92c60bf924171629c5db97febb12f04", size = 174155, upload-time = "2025-03-05T20:03:25.321Z" },
     { url = "https://files.pythonhosted.org/packages/fa/a8/5b41e0da817d64113292ab1f8247140aac61cbf6cfd085d6a0fa77f4984f/websockets-15.0.1-py3-none-any.whl", hash = "sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f", size = 169743, upload-time = "2025-03-05T20:03:39.41Z" },
 ]
-
-[[package]]
-name = "wmi"
-version = "1.4.9"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/03/2d/cbf13257c0115bef37b6b743758411cec70c565405cbd08d0f7059bc715f/WMI-1.4.9.zip", hash = "sha256:192ccfad3d7bb3ef43116d753f4d5cf85c0a6b738f832cc131e928fd93cdd400", size = 26942, upload-time = "2011-04-13T10:41:21.521Z" }
 
 [[package]]
 name = "zstandard"
