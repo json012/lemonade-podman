@@ -7,10 +7,3 @@ requires-python = ">=3.10"
 dependencies = [
     "lemonade-sdk>=8.1.10",
 ]
-
-[tool.uv]
-# Limit what platforms uv resolves for:
-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
-
-# And require wheels to exist for those envs (avoids picking win-only wheels):
-required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
