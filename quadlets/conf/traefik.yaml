@@ -1,0 +1,15 @@
+log:
+  level: INFO
+  format: "common"
+
+serversTransport:
+  insecureSkipVerify: true
+
+entryPoints:
+  web:
+    address: 0.0.0.0:8080
+
+providers:
+  file:
+    filename: "/hosts.yaml"
+    watch: true

@@ -18,3 +18,10 @@ venv/
 
 # OS
 .DS_Store
+
+traefik-hosts.yaml
+litellm.yaml
+models.txt
+
+
+*.drawio.bkp

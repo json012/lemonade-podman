@@ -1,0 +1,30 @@
+[Unit]
+Description=LiteLLM Proxy
+Wants=litellm.network litellm-db.network
+After=litellm.network traefik.network litellm-db.service
+
+[Container]
+Image=ghcr.io/berriai/litellm-non_root:main-stable
+ContainerName=litellm
+
+EnvironmentFile=%h/.config/containers/systemd/conf/litellm.env
+
+Network=litellm.network
+Network=traefik.network
+Network=litellm-db.network
+
+PublishPort=4000:4000
+
+Tmpfs=/tmp
+Tmpfs=/var/tmp
+Tmpfs=/run
+
+Volume=%h/.config/containers/systemd/conf/litellm.yaml:/app/config.yaml:Z
+Exec=--config /app/config.yaml
+
+[Service]
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

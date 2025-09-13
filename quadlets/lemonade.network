@@ -1,4 +1,0 @@
-# ~/.config/containers/systemd/lemonade.network
-[Network]
-Driver=bridge
-

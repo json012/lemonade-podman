@@ -1,0 +1,21 @@
+[Unit]
+Description=Cloudflared Tunnel
+Wants=cloudflared.network
+After=cloudflared.network
+
+[Container]
+Image=docker.io/cloudflare/cloudflared:2025.8.1
+ContainerName=cloudflared
+
+Exec=tunnel --no-autoupdate --loglevel=info run
+
+EnvironmentFile=%h/.config/containers/systemd/conf/cloudflared.env
+
+Network=cloudflared.network
+
+[Service]
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

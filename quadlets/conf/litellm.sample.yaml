@@ -1,0 +1,30 @@
+# LiteLLM Configuration File
+# This file configures the LiteLLM proxy server
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: false
+  set_verbose: false
+
+# Model routing configuration
+model_list:
+  - model_name: "nomic-embed-text-v2-moe-GGUF"
+    litellm_params:
+      model: "openai/nomic-embed-text-v2-moe-GGUF"
+      api_base: "http://lemonade-nomic-embed-text-v2-moe-GGUF:8000/api/v1"
+      api_key: "lemonade"
+  
+  - model_name: "Gemma-3-4b-it-GGUF"
+    litellm_params:
+      model: "openai/Gemma-3-4b-it-GGUF"
+      api_base: "http://lemonade-Gemma-3-4b-it-GGUF:8000/api/v1"
+      api_key: "lemonade"
+  
+  - model_name: "gpt-oss-120b-GGUF"
+    litellm_params:
+      model: "openai/gpt-oss-120b-GGUF"
+      api_base: "http://lemonade-gpt-oss-120b-GGUF:8000/api/v1"
+      api_key: "lemonade"
+
+  

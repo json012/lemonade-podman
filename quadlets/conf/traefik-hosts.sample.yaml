@@ -1,0 +1,27 @@
+http:
+  services:
+    litellm:
+      loadBalancer:
+        servers:
+        - url: http://litellm:4000
+  routers:
+    litellm:
+      rule: Host(`example.com`)
+      service: litellm
+      middlewares:
+        - litellm
+  middlewares:
+    litellm:
+      # Add some security headers
+      headers:
+        SSLHost: example.com
+        SSLRedirect: true
+        STSSeconds: 315360000
+        browserXSSFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        STSIncludeSubdomains: true
+        STSPreload: true
+        customFrameOptionsValue: SAMEORIGIN
+        customRequestHeaders:
+          X-Forwarded-Proto: https

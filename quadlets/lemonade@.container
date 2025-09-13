@@ -1,26 +1,29 @@
-# ~/.config/containers/systemd/lemonade.container
+# ~/.config/containers/systemd/lemonade@.container
 [Unit]
 Description=Lemonade Server (llama.cpp Vulkan via uv)
 Wants=network-online.target
 After=network-online.target
+Wants=litellm.network
+After=litellm.network
 
 # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
 ConditionPathExists=/dev/dri/renderD128
 
 [Container]
-ContainerName=lemonade
+ContainerName=lemonade-%i
 
-# Uses published image by default. Change to `Image=localhost/lemonade:latest` for local image instead.
+# For local image
 # Image=localhost/lemonade:latest
+
+# For remote image
 Image=ghcr.io/json012/lemonade:latest
 Pull=newer
 
-# Dynamic port mapping - uses %I parameter or defaults to 8000
-PublishPort=8000:8000
+# No port publishing needed - containers communicate internally via litellm network
 
 # Persist model/cache
-Volume=lemonade.volume:/home/ubuntu/.cache:Z
-Network=lemonade.network
+Volume=lemonade.volume:/home/ubuntu/.cache/huggingface/hub
+Network=litellm.network
 
 # Minimal device mapping for Vulkan
 PodmanArgs=--device /dev/dri/renderD128

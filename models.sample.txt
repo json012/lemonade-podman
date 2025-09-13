@@ -1,0 +1,3 @@
+nomic-embed-text-v2-moe-GGUF
+Gemma-3-4b-it-GGUF
+gpt-oss-120b-GGUF
