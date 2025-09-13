@@ -31,7 +31,12 @@ RUN uv run lemonade-install --llamacpp vulkan
 # Ensure the entire .venv directory is accessible to non-root users
 # This is crucial when using UserNS=keep-id in the quadlet
 RUN chmod -R 755 /opt/lemonade/.venv && \
-    chown -R 1000:1000 /opt/lemonade/.venv || true
+    chown -R ubuntu:ubuntu /opt/lemonade/.venv
+
+# Create and fix permissions for huggingface cache directory,
+# so can map a shared persistent volume of models into it
+RUN mkdir -p /home/ubuntu/.cache/huggingface/hub && \
+    chmod -R 755 /home/ubuntu/.cache/huggingface/hub
 
 # Lemonade runtime envs
 ENV LEMONADE_HOST=0.0.0.0 \
