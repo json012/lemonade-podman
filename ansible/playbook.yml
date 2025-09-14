@@ -1,0 +1,281 @@
+---
+- name: Lemonade via LiteLLM stack
+  hosts: "{{ target_host | default('localhost') }}"
+  gather_facts: true
+
+  vars:
+    quadlets_src_dir: "../quadlets/"
+    vars_src_dir: "../vars/"
+    shell_scripts_dir: "../vars/shell_scripts/"
+    enable_online_hosting: false
+
+  pre_tasks:
+    - name: Derive user systemd directory
+      set_fact:
+        user_systemd_dir: "{{ user_systemd_dir | default(ansible_env.HOME + '/.config/containers/systemd') }}"
+
+    - name: Derive user vars directory
+      set_fact:
+        user_vars_dir: "{{ user_vars_dir | default(ansible_env.HOME + '/.config/containers/systemd/conf') }}"
+    
+    - name: Derive generated vars directory
+      set_fact:
+        generated_conf_dir: "{{ vars_src_dir }}generated/"
+
+    - name: Ensure user systemd directory exists
+      file:
+        path: "{{ user_systemd_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure user vars directory exists
+      file:
+        path: "{{ user_vars_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure generated vars directory exists
+      file:
+        path: "{{ generated_conf_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Set required vars files based on whether hosting online
+      set_fact:
+        required_vars_files: >-
+          {{
+            ['litellm-db.env', 'litellm.env', 'litellm.yaml'] +
+            (['traefik.yaml', 'cloudflared.env', 'traefik-hosts.yaml'] if enable_online_hosting else [])
+          }}
+
+    - name: Check if vars files already exist
+      stat:
+        path: "{{ user_vars_dir }}/{{ item }}"
+      loop: "{{ required_vars_files }}"
+      register: existing_vars_files
+
+    - name: Check if required packages are available
+      command: "which {{ item }}"
+      loop:
+        - "jq"
+        - "openssl"
+        - "curl"
+        - "sed"
+        - "podman"
+      register: package_check
+      failed_when: package_check.rc != 0
+      changed_when: false
+
+    - name: Fail if required packages are missing
+      fail:
+        msg: "Required package '{{ item.item }}' not found. Please install it with your package manager (e.g., 'sudo dnf install {{ item.item }}' or 'sudo apt install {{ item.item }}')"
+      loop: "{{ package_check.results }}"
+      when: item.rc != 0
+
+  tasks:
+    - name: Ensure shell scripts have execute permissions
+      file:
+        path: "{{ item }}"
+        mode: "0755"
+      loop:
+        - "{{ shell_scripts_dir }}gen_litellm_conf.sh"
+        - "{{ shell_scripts_dir }}gen_traefik_hosts.sh"
+        - "{{ shell_scripts_dir }}gen_models_txt.sh"
+        - "{{ shell_scripts_dir }}gen_env_files.sh"
+
+    - name: Check if models.txt exists
+      stat:
+        path: "{{ user_vars_dir }}/models.txt"
+      register: models_txt_exists
+
+    - name: Get available models from GitHub Repo
+      uri:
+        url: "https://raw.githubusercontent.com/lemonade-sdk/lemonade/refs/heads/main/src/lemonade_server/server_models.json"
+        return_content: yes
+      register: models_api_response
+      when: not models_txt_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Parse available models
+      set_fact:
+        available_models: >-
+          {{
+            (models_api_response.content | from_json | dict2items | selectattr('value.recipe', 'equalto', 'llamacpp') | selectattr('value.suggested', 'equalto', true) | map(attribute='key') | list)
+          }}
+      when: not models_txt_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display available models
+      debug:
+        msg: "Available models: {{ available_models | join(', ') }}"
+      when: not models_txt_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Prompt for model selection
+      pause:
+        prompt: "Choose models (comma separated key names).\nAll models: https://github.com/lemonade-sdk/lemonade/blob/main/docs/server/server_models.md#gguf\nSuggested Llama.cpp models: {{ available_models | join(', ') }}"
+      register: model_selection
+      when: not models_txt_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Generate models.txt using shell script
+      shell: "{{ shell_scripts_dir }}gen_models_txt.sh '{{ model_selection.user_input }}'"
+      when: not models_txt_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Check if litellm-db.env exists
+      stat:
+        path: "{{ user_vars_dir }}/litellm-db.env"
+      register: litellm_db_env_exists
+
+    - name: Prompt for LiteLLM domain name (online hosting)
+      pause:
+        prompt: "Enter LiteLLM domain name (e.g., litellm.example.com):"
+      register: litellm_domain
+      when: 
+        - enable_online_hosting
+        - not litellm_db_env_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Prompt for Cloudflare tunnel token
+      pause:
+        prompt: "Enter Cloudflared tunnel token (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/#2a-connect-an-application):"
+      register: tunnel_token
+      when: 
+        - enable_online_hosting
+        - not litellm_db_env_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Generate environment files using shell script (online hosting)
+      shell: "{{ shell_scripts_dir }}gen_env_files.sh '{{ litellm_domain.user_input }}' '{{ tunnel_token.user_input }}'"
+      when: 
+        - enable_online_hosting
+        - not litellm_db_env_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Generate environment files using shell script (local only)
+      shell: "{{ shell_scripts_dir }}gen_env_files.sh"
+      when: 
+        - not enable_online_hosting
+        - not litellm_db_env_exists.stat.exists
+      delegate_to: localhost
+      run_once: true
+
+    - name: Check if litellm.yaml exists
+      stat:
+        path: "{{ user_vars_dir }}/litellm.yaml"
+      register: litellm_yaml_exists
+
+    - name: Generate litellm.yaml using shell script
+      shell: "{{ shell_scripts_dir }}gen_litellm_conf.sh"
+      delegate_to: localhost
+      run_once: true
+      when: not litellm_yaml_exists.stat.exists
+
+    - name: Check if traefik-hosts.yaml exists
+      stat:
+        path: "{{ user_vars_dir }}/traefik-hosts.yaml"
+      register: traefik_hosts_yaml_exists
+
+    - name: Generate traefik-hosts.yaml using shell script
+      shell: "{{ shell_scripts_dir }}gen_traefik_hosts.sh"
+      delegate_to: localhost
+      run_once: true
+      when: 
+        - enable_online_hosting
+        - not traefik_hosts_yaml_exists.stat.exists
+
+    - name: Copy generated conf files to user config directory
+      copy:
+        src: "{{ generated_conf_dir }}/{{ item }}"
+        dest: "{{ user_vars_dir }}/{{ item }}"
+        mode: "0644"
+      loop: >-
+        {{
+          ['models.txt', 'litellm-db.env', 'litellm.env', 'litellm.yaml'] +
+          (['cloudflared.env', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else [])
+        }}
+      when: lookup('file', user_vars_dir + '/' + item, errors='ignore') is none
+
+    - name: Copy core quadlets to user systemd directory
+      copy:
+        src: "{{ quadlets_src_dir }}{{ item }}"
+        dest: "{{ user_systemd_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - "lemonade@.container"
+        - "lemonade.volume"
+        - "litellm-db.container"
+        - "litellm-db.network"
+        - "litellm-db.volume"
+        - "litellm.container"
+        - "litellm.network"
+      notify: Reload user systemd
+
+    - name: Copy online hosting quadlets (if enabled)
+      copy:
+        src: "{{ quadlets_src_dir }}{{ item }}"
+        dest: "{{ user_systemd_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - "traefik.container"
+        - "traefik.network"
+        - "cloudflared.container"
+        - "cloudflared.network"
+      when: enable_online_hosting
+      notify: Reload user systemd
+
+
+    - name: Trigger systemd reload
+      meta: flush_handlers
+
+    - name: Read models.txt and derive models list
+      set_fact:
+        models_content: "{{ lookup('file', user_vars_dir + '/models.txt', errors='ignore') | trim | default('') }}"
+        models_list: "{{ (lookup('file', user_vars_dir + '/models.txt', errors='ignore') | trim | default('')) | split() }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: (Re)start lemonade instances for each model
+      systemd:
+        name: "lemonade@{{ item }}.service"
+        state: restarted
+        scope: user
+      loop: "{{ models_list | default([]) }}"
+      when: (models_list | default([])) | length > 0
+
+    - name: Set core services based on online hosting preference
+      set_fact:
+        core_services: >-
+          {{
+            ['litellm-db', 'litellm'] +
+            (['traefik', 'cloudflared'] if enable_online_hosting else [])
+          }}
+
+    - name: (Re)start core services
+      systemd:
+        name: "{{ item }}.service"
+        state: restarted
+        scope: user
+      loop: "{{ core_services }}"    
+
+    - name: Clean up generated files directory
+      file:
+        path: "{{ generated_conf_dir }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+
+  handlers:
+    - name: Reload user systemd
+      systemd:
+        daemon_reload: true
+        scope: user

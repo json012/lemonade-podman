@@ -90,3 +90,26 @@ All instances run on port 8000. For multiple model instances, consider using a r
 - Ensure `/dev/kfd` and `/dev/dri` are present and accessible to the container
 - Validate Vulkan support: `vulkaninfo | head -n 20`
 - Check logs: `podman logs -f lemonade` and/or `journalctl --user -xeu lemonade.service`
+
+### Ansible-based setup (recommended)
+
+For an idempotent setup, use the included Ansible playbook.
+
+Quickstart (runs on localhost by default):
+
+```
+ansible-playbook -i ./ansible/inventory.ini /ansible/playbook.yml
+```
+
+To enable online hosting (requires litellm domain and cloudflare tunnel token):
+
+```
+cd ansible
+ansible-playbook -i ./ansible/inventory.ini ./ansible/playbook.yml -e enable_online_hosting=true
+```
+
+To run against a remote host via SSH (using ~/.ssh/config):
+
+```
+ansible-playbook -i ./ansible/inventory.ini -i 'my-ssh-alias,' ./ansible/playbook.yml -e target_host=my-ssh-alias
+```

@@ -1,3 +1,7 @@
+# Ansible private vars (inventory.ini is committed with only localhost)
+ansible/host_vars/
+ansible/group_vars/private/
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -25,3 +29,5 @@ models.txt
 
 
 *.drawio.bkp
+
+vars/generated/
