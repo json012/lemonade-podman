@@ -23,11 +23,12 @@ venv/
 # OS
 .DS_Store
 
+# User configuration files
 traefik-hosts.yaml
 litellm.yaml
-models.txt
-
+docker-compose.proxied-models.yml
 
 *.drawio.bkp
 
 vars/generated/
+

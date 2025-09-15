@@ -98,18 +98,18 @@ For an idempotent setup, use the included Ansible playbook.
 Quickstart (runs on localhost by default):
 
 ```
-ansible-playbook -i ./ansible/inventory.ini /ansible/playbook.yml
+ansible-playbook -i localhost, ./ansible/playbook.yml
 ```
 
 To enable online hosting (requires litellm domain and cloudflare tunnel token):
 
 ```
 cd ansible
-ansible-playbook -i ./ansible/inventory.ini ./ansible/playbook.yml -e enable_online_hosting=true
+ansible-playbook -i localhost, ./ansible/playbook.yml -e enable_online_hosting=true
 ```
 
 To run against a remote host via SSH (using ~/.ssh/config):
 
 ```
-ansible-playbook -i ./ansible/inventory.ini -i 'my-ssh-alias,' ./ansible/playbook.yml -e target_host=my-ssh-alias
+ansible-playbook -i 'my-ssh-alias,' ./ansible/playbook.yml -e target_host=my-ssh-alias
 ```

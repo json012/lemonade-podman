@@ -1,66 +1,116 @@
 ---
-- name: Lemonade via LiteLLM stack
+- name: Lemonade via LiteLLM stack (Docker Compose)
   hosts: "{{ target_host | default('localhost') }}"
   gather_facts: true
 
   vars:
-    quadlets_src_dir: "../quadlets/"
-    vars_src_dir: "../vars/"
-    shell_scripts_dir: "../vars/shell_scripts/"
-    enable_online_hosting: false
+    project_root: "../"
 
   pre_tasks:
-    - name: Derive user systemd directory
+    - name: Set enable_online_hosting with default
       set_fact:
-        user_systemd_dir: "{{ user_systemd_dir | default(ansible_env.HOME + '/.config/containers/systemd') }}"
+        enable_online_hosting: "{{ enable_online_hosting | default(false) }}"
 
-    - name: Derive user vars directory
+    - name: Set use_systemd with default
       set_fact:
-        user_vars_dir: "{{ user_vars_dir | default(ansible_env.HOME + '/.config/containers/systemd/conf') }}"
-    
-    - name: Derive generated vars directory
+        use_systemd: "{{ use_systemd | default(false) }}"
+
+    - name: Set compose files based on deployment type
       set_fact:
-        generated_conf_dir: "{{ vars_src_dir }}generated/"
-
-    - name: Ensure user systemd directory exists
-      file:
-        path: "{{ user_systemd_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Ensure user vars directory exists
-      file:
-        path: "{{ user_vars_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Ensure generated vars directory exists
-      file:
-        path: "{{ generated_conf_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Set required vars files based on whether hosting online
-      set_fact:
-        required_vars_files: >-
+        compose_files: >-
           {{
-            ['litellm-db.env', 'litellm.env', 'litellm.yaml'] +
-            (['traefik.yaml', 'cloudflared.env', 'traefik-hosts.yaml'] if enable_online_hosting else [])
+            ['docker-compose.yml', 'docker-compose.proxied-models.yml'] +
+            (['docker-compose.online.yml'] if enable_online_hosting else [])
           }}
 
-    - name: Check if vars files already exist
+    - name: Derive deployment directory
+      set_fact:
+        deployment_dir: "{{ deployment_dir | default(ansible_env.HOME + '/.config/lemonade') }}"
+
+    - name: Set required files based on deployment type
+      set_fact:
+        required_files: >-
+          {{
+            ['.env', 'docker-compose.yml', 'docker-compose.proxied-models.yml', 'litellm.yaml'] +
+            (['docker-compose.online.yml', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else [])
+          }}
+
+    - name: Check if required configuration files exist
       stat:
-        path: "{{ user_vars_dir }}/{{ item }}"
-      loop: "{{ required_vars_files }}"
-      register: existing_vars_files
+        path: "{{ project_root }}/{{ item }}"
+      loop: "{{ required_files }}"
+      register: required_files_check
+
+    - name: Fail if required files are missing
+      fail:
+        msg: |
+          ❌ MISSING CONFIGURATION FILES
+          
+          The following files are required but not found:
+          {% for result in required_files_check.results %}
+          {% if not result.stat.exists %}
+          • {{ result.item }}
+          {% endif %}
+          {% endfor %}
+          
+          📋 SETUP INSTRUCTIONS:
+          1. Copy sample.env to .env and configure your values
+          2. Copy litellm.example.yaml to litellm.yaml and configure as needed
+          3. Copy docker-compose.proxied-models.example.yml to docker-compose.proxied-models.yml
+
+          For steps 2 and 3, you can use the generate_model_configs.sh script to automatically create
+          litellm.yaml and docker-compose.proxied-models.yml files based on models you choose:
+          ./generate_model_configs.sh
+          {% if enable_online_hosting %}
+          4. Copy traefik-hosts.example.yaml to traefik-hosts.yaml and configure your domain
+          {% endif %}
+      when: required_files_check.results | selectattr('stat.exists', 'equalto', false) | list | length > 0
+
+    - name: Set required environment variables
+      set_fact:
+        required_env_vars: >-
+          {{
+            ['LITELLM_MASTER_KEY', 'LITELLM_SALT_KEY', 'LITELLM_HOST', 'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'LITELLM_DB_URL'] +
+            (['TUNNEL_TOKEN', 'TRAEFIK_DOMAIN'] if enable_online_hosting else [])
+          }}
+
+    - name: Check each environment variable individually
+      shell: "grep -q '^{{ item }}=' {{ project_root }}/.env"
+      loop: "{{ required_env_vars }}"
+      register: env_var_checks
+      failed_when: false
+
+    - name: Set missing environment variables
+      set_fact:
+        missing_env_vars: >-
+          {{
+            required_env_vars | zip(env_var_checks.results) | 
+            selectattr('1.rc', 'ne', 0) | map(attribute='0') | list
+          }}
+
+    - name: Fail if environment variables are missing
+      fail:
+        msg: |
+          ❌ MISSING ENVIRONMENT VARIABLES
+          
+          The following variables are required in your .env file but not found:
+          {% for var in missing_env_vars %}
+          • {{ var }}
+          {% endfor %}
+          
+          📋 Please add these variables to your .env file with appropriate values.
+      when: missing_env_vars | length > 0
+
+
+    - name: Ensure deployment directory exists
+      file:
+        path: "{{ deployment_dir }}"
+        state: directory
+        mode: "0755"
 
     - name: Check if required packages are available
       command: "which {{ item }}"
       loop:
-        - "jq"
-        - "openssl"
-        - "curl"
-        - "sed"
         - "podman"
       register: package_check
       failed_when: package_check.rc != 0
@@ -68,214 +118,142 @@
 
     - name: Fail if required packages are missing
       fail:
-        msg: "Required package '{{ item.item }}' not found. Please install it with your package manager (e.g., 'sudo dnf install {{ item.item }}' or 'sudo apt install {{ item.item }}')"
-      loop: "{{ package_check.results }}"
-      when: item.rc != 0
+        msg: |
+          ❌ MISSING REQUIRED PACKAGES
+          
+          The following packages are required but not found:
+          {% for result in package_check.results %}
+          {% if result.rc != 0 %}
+          • {{ result.item }}
+          {% endif %}
+          {% endfor %}
+          
+          📋 Install them with your package manager:
+          sudo dnf install podman
+          # or
+          sudo apt install podman
+      when: package_check.results | selectattr('rc', 'ne', 0) | list | length > 0
 
   tasks:
-    - name: Ensure shell scripts have execute permissions
+    - name: Copy .env file from project root to user vars directory
+      copy:
+        src: "{{ project_root }}/.env"
+        dest: "{{ deployment_dir }}/.env"
+        mode: "0644"
+
+    - name: Copy docker-compose files to target host
+      copy:
+        src: "{{ project_root }}/{{ item }}"
+        dest: "{{ deployment_dir }}/{{ item }}"
+        mode: "0644"
+      loop: "{{ compose_files }}"
+
+    - name: Copy litellm.yaml to target host
+      copy:
+        src: "{{ project_root }}/litellm.example.yaml"
+        dest: "{{ deployment_dir }}/litellm.yaml"
+        mode: "0644"
+
+    - name: Copy traefik configuration files (if online hosting)
+      copy:
+        src: "{{ project_root }}/{{ item }}"
+        dest: "{{ deployment_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - "traefik.yaml"
+        - "traefik-hosts.example.yaml"
+      when: enable_online_hosting
+
+    - name: Stop existing containers
+      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} down"
+      ignore_errors: true
+
+    - name: Start containers with podman-compose
+      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} up -d"
+      register: compose_start_result
+
+    - name: Display compose start result
+      debug:
+        var: compose_start_result.stdout_lines
+
+    - name: Show running containers
+      shell: "podman ps --format 'table {{ \"{{.Names}}\" }}\t{{ \"{{.Status}}\" }}\t{{ \"{{.Ports}}\" }}'"
+      register: running_containers
+
+    - name: Display running containers
+      debug:
+        var: running_containers.stdout_lines
+
+    - name: Create user systemd service directories
       file:
         path: "{{ item }}"
+        state: directory
         mode: "0755"
       loop:
-        - "{{ shell_scripts_dir }}gen_litellm_conf.sh"
-        - "{{ shell_scripts_dir }}gen_traefik_hosts.sh"
-        - "{{ shell_scripts_dir }}gen_models_txt.sh"
-        - "{{ shell_scripts_dir }}gen_env_files.sh"
+        - "{{ ansible_env.HOME }}/.config/systemd/user"
+        - "{{ ansible_env.HOME }}/.config/containers/compose/projects"
+      when: use_systemd
 
-    - name: Check if models.txt exists
-      stat:
-        path: "{{ user_vars_dir }}/models.txt"
-      register: models_txt_exists
+    - name: Register compose project with systemd
+      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action register"
+      register: systemd_register_result
+      when: use_systemd
 
-    - name: Get available models from GitHub Repo
-      uri:
-        url: "https://raw.githubusercontent.com/lemonade-sdk/lemonade/refs/heads/main/src/lemonade_server/server_models.json"
-        return_content: yes
-      register: models_api_response
-      when: not models_txt_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
-
-    - name: Parse available models
-      set_fact:
-        available_models: >-
-          {{
-            (models_api_response.content | from_json | dict2items | selectattr('value.recipe', 'equalto', 'llamacpp') | selectattr('value.suggested', 'equalto', true) | map(attribute='key') | list)
-          }}
-      when: not models_txt_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
-
-    - name: Display available models
+    - name: Display systemd registration result
       debug:
-        msg: "Available models: {{ available_models | join(', ') }}"
-      when: not models_txt_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+        var: systemd_register_result.stdout_lines
+      when: use_systemd
 
-    - name: Prompt for model selection
-      pause:
-        prompt: "Choose models (comma separated key names).\nAll models: https://github.com/lemonade-sdk/lemonade/blob/main/docs/server/server_models.md#gguf\nSuggested Llama.cpp models: {{ available_models | join(', ') }}"
-      register: model_selection
-      when: not models_txt_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+    - name: Create and save systemd unit file
+      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action create-unit > {{ ansible_env.HOME }}/.config/systemd/user/podman-compose@.service"
+      when: use_systemd
 
-    - name: Generate models.txt using shell script
-      shell: "{{ shell_scripts_dir }}gen_models_txt.sh '{{ model_selection.user_input }}'"
-      when: not models_txt_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+    - name: Reload user systemd daemon
+      shell: "systemctl --user daemon-reload"
+      when: use_systemd
 
-    - name: Check if litellm-db.env exists
-      stat:
-        path: "{{ user_vars_dir }}/litellm-db.env"
-      register: litellm_db_env_exists
+    - name: Enable systemd service
+      shell: "systemctl --user enable podman-compose@lemonade"
+      when: use_systemd
 
-    - name: Prompt for LiteLLM domain name (online hosting)
-      pause:
-        prompt: "Enter LiteLLM domain name (e.g., litellm.example.com):"
-      register: litellm_domain
-      when: 
-        - enable_online_hosting
-        - not litellm_db_env_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+    - name: Start systemd service
+      shell: "systemctl --user start podman-compose@lemonade"
+      register: systemd_service_result
+      when: use_systemd
 
-    - name: Prompt for Cloudflare tunnel token
-      pause:
-        prompt: "Enter Cloudflared tunnel token (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/#2a-connect-an-application):"
-      register: tunnel_token
-      when: 
-        - enable_online_hosting
-        - not litellm_db_env_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+    - name: Display systemd service status
+      shell: "systemctl --user status podman-compose@lemonade"
+      register: systemd_status_result
+      when: use_systemd
 
-    - name: Generate environment files using shell script (online hosting)
-      shell: "{{ shell_scripts_dir }}gen_env_files.sh '{{ litellm_domain.user_input }}' '{{ tunnel_token.user_input }}'"
-      when: 
-        - enable_online_hosting
-        - not litellm_db_env_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
+    - name: Show systemd service status
+      debug:
+        var: systemd_status_result.stdout_lines
+      when: use_systemd
 
-    - name: Generate environment files using shell script (local only)
-      shell: "{{ shell_scripts_dir }}gen_env_files.sh"
-      when: 
-        - not enable_online_hosting
-        - not litellm_db_env_exists.stat.exists
-      delegate_to: localhost
-      run_once: true
-
-    - name: Check if litellm.yaml exists
-      stat:
-        path: "{{ user_vars_dir }}/litellm.yaml"
-      register: litellm_yaml_exists
-
-    - name: Generate litellm.yaml using shell script
-      shell: "{{ shell_scripts_dir }}gen_litellm_conf.sh"
-      delegate_to: localhost
-      run_once: true
-      when: not litellm_yaml_exists.stat.exists
-
-    - name: Check if traefik-hosts.yaml exists
-      stat:
-        path: "{{ user_vars_dir }}/traefik-hosts.yaml"
-      register: traefik_hosts_yaml_exists
-
-    - name: Generate traefik-hosts.yaml using shell script
-      shell: "{{ shell_scripts_dir }}gen_traefik_hosts.sh"
-      delegate_to: localhost
-      run_once: true
-      when: 
-        - enable_online_hosting
-        - not traefik_hosts_yaml_exists.stat.exists
-
-    - name: Copy generated conf files to user config directory
-      copy:
-        src: "{{ generated_conf_dir }}/{{ item }}"
-        dest: "{{ user_vars_dir }}/{{ item }}"
-        mode: "0644"
-      loop: >-
-        {{
-          ['models.txt', 'litellm-db.env', 'litellm.env', 'litellm.yaml'] +
-          (['cloudflared.env', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else [])
-        }}
-      when: lookup('file', user_vars_dir + '/' + item, errors='ignore') is none
-
-    - name: Copy core quadlets to user systemd directory
-      copy:
-        src: "{{ quadlets_src_dir }}{{ item }}"
-        dest: "{{ user_systemd_dir }}/{{ item }}"
-        mode: "0644"
-      loop:
-        - "lemonade@.container"
-        - "lemonade.volume"
-        - "litellm-db.container"
-        - "litellm-db.network"
-        - "litellm-db.volume"
-        - "litellm.container"
-        - "litellm.network"
-      notify: Reload user systemd
-
-    - name: Copy online hosting quadlets (if enabled)
-      copy:
-        src: "{{ quadlets_src_dir }}{{ item }}"
-        dest: "{{ user_systemd_dir }}/{{ item }}"
-        mode: "0644"
-      loop:
-        - "traefik.container"
-        - "traefik.network"
-        - "cloudflared.container"
-        - "cloudflared.network"
-      when: enable_online_hosting
-      notify: Reload user systemd
-
-
-    - name: Trigger systemd reload
-      meta: flush_handlers
-
-    - name: Read models.txt and derive models list
-      set_fact:
-        models_content: "{{ lookup('file', user_vars_dir + '/models.txt', errors='ignore') | trim | default('') }}"
-        models_list: "{{ (lookup('file', user_vars_dir + '/models.txt', errors='ignore') | trim | default('')) | split() }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: (Re)start lemonade instances for each model
-      systemd:
-        name: "lemonade@{{ item }}.service"
-        state: restarted
-        scope: user
-      loop: "{{ models_list | default([]) }}"
-      when: (models_list | default([])) | length > 0
-
-    - name: Set core services based on online hosting preference
-      set_fact:
-        core_services: >-
-          {{
-            ['litellm-db', 'litellm'] +
-            (['traefik', 'cloudflared'] if enable_online_hosting else [])
-          }}
-
-    - name: (Re)start core services
-      systemd:
-        name: "{{ item }}.service"
-        state: restarted
-        scope: user
-      loop: "{{ core_services }}"    
-
-    - name: Clean up generated files directory
-      file:
-        path: "{{ generated_conf_dir }}"
-        state: absent
-      delegate_to: localhost
-      run_once: true
-
-  handlers:
-    - name: Reload user systemd
-      systemd:
-        daemon_reload: true
-        scope: user
+    - name: Display usage instructions
+      debug:
+        msg: |
+          ✅ Docker Compose deployment completed!
+          
+          {% if use_systemd %}
+          🔧 Systemd service management:
+          User systemd service is created and enabled as podman-compose@lemonade.service
+          
+          View service status: systemctl --user status podman-compose@lemonade
+          
+          📋 Pod management commands:
+          • View pod stats: podman pod stats pod_lemonade
+          • View pod logs: podman pod logs --tail=10 -f pod_lemonade
+          {% else %}
+          📋 Management commands:
+          • View logs: cd {{ deployment_dir }} && podman-compose logs -f
+          • Stop stack: cd {{ deployment_dir }} && podman-compose down
+          • Restart stack: cd {{ deployment_dir }} && podman-compose restart
+          {% endif %}
+          
+          {% if enable_online_hosting %}
+          🌐 Online hosting is enabled. Your LiteLLM instance should be accessible via your configured domain.
+          {% else %}
+          🏠 Local deployment. LiteLLM is accessible at http://localhost:4000
+          {% endif %}

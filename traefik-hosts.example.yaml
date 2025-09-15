@@ -1,3 +1,7 @@
+# Example Traefik hosts file
+# Copy this file to traefik-hosts.yaml and edit it to add your hosts
+# Replace "example.com" with your domain in two places
+
 http:
   services:
     litellm:

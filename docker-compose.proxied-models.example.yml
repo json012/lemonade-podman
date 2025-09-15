@@ -1,0 +1,65 @@
+# Model-specific lemonade services
+# This file extends docker-compose.yml to add specific model instances
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.proxied-models.yml up
+# Note: This file will not work as a standalone file, it must be chained after docker-compose.yml
+
+services:
+  lemonade-nomic-embed-text-v2-moe-GGUF:
+    container_name: lemonade-nomic-embed-text-v2-moe-GGUF
+    image: ghcr.io/json012/lemonade:latest
+    environment:
+      LEMONADE_LLAMACPP: vulkan
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_CACHE: /home/ubuntu/.cache
+    volumes:
+      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - litellm-network
+    devices:
+      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    restart: always
+    command: [
+      "uv",
+      "run",
+      "lemonade-server-dev",
+      "run",
+      "nomic-embed-text-v2-moe-GGUF",
+      "--llamacpp",
+      "vulkan"
+    ]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  lemonade-Gemma-3-4b-it-GGUF:
+    container_name: lemonade-Gemma-3-4b-it-GGUF
+    image: ghcr.io/json012/lemonade:latest
+    environment:
+      LEMONADE_LLAMACPP: vulkan
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_CACHE: /home/ubuntu/.cache
+    volumes:
+      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - litellm-network
+    devices:
+      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    restart: always
+    command: [
+      "uv",
+      "run",
+      "lemonade-server-dev",
+      "run",
+      "Gemma-3-4b-it-GGUF",
+      "--llamacpp",
+      "vulkan"
+    ]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s

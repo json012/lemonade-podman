@@ -1,0 +1,87 @@
+services:
+  litellm-db:
+    image: postgres:17-trixie
+    container_name: litellm-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - litellm-db-data:/var/lib/postgresql/data
+    networks:
+      - litellm-db-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  litellm:
+    image: ghcr.io/berriai/litellm-non_root:main-stable
+    container_name: litellm
+    environment:
+      LITELLM_HOST: ${LITELLM_HOST}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: ${LITELLM_DB_URL}
+    volumes:
+      - ./litellm.yaml:/app/config.yaml:Z
+    networks:
+      - litellm-network
+      - litellm-db-network
+    ports:
+      - "4000:4000"
+    depends_on:
+      - litellm-db
+    restart: always
+    command: --config /app/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4000/health/liveliness"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  # Base unproxied Lemonade Service
+  # Preloaded models instances can be added by creating a docker-compose.models.yml file
+  # and chaining that file after this one in your `docker compose` command
+  # This service is only for convenience, and can be safely stopped if you don't need the local Lemonade interface
+  lemonade:
+    image: ghcr.io/json012/lemonade:latest
+    container_name: lemonade
+    environment:
+      LEMONADE_LLAMACPP: vulkan
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_CACHE: /home/ubuntu/.cache
+    volumes:
+      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+    devices:
+      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    restart: unless-stopped
+    command: [
+      "uv",
+      "run",
+      "lemonade-server-dev",
+      "serve",
+      "--llamacpp",
+      "vulkan"
+    ]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+networks:
+  litellm-network:
+    driver: bridge
+  litellm-db-network:
+    driver: bridge
+    internal: true
+
+volumes:
+  litellm-db-data:
+    driver: local
+  lemonade-cache:
+    driver: local

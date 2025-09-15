@@ -1,0 +1,72 @@
+# This file extends docker-compose.yml to add Traefik and Cloudflared services
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.online.yml up
+# Note: This file will not work as a standalone file, it must be chained after docker-compose.yml
+
+services:
+  traefik:
+    image: traefik:v3.4.3
+    container_name: traefik
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yaml:/etc/traefik/traefik.yml:Z
+      - ./traefik-hosts.yaml:/hosts.yaml:Z
+    networks:
+      - cloudflared-network
+      - traefik-network
+    ports:
+      - "8080:8080"
+    depends_on:
+      - cloudflared
+      - litellm
+    restart: always
+    command:
+      - --entrypoints.web
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.filename=/hosts.yaml
+      - --providers.file.watch=true
+      - --log.level=INFO
+      - --log.format=common
+      - --serversTransport.insecureSkipVerify=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.8.1
+    container_name: cloudflared
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    networks:
+      - cloudflared-network
+    restart: always
+    command: tunnel --no-autoupdate --loglevel=info run
+
+  # Override litellm service to add traefik labels for discovery
+  litellm:
+    image: ghcr.io/berriai/litellm-non_root:main-stable
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.litellm.rule=Host(`${TRAEFIK_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.litellm.entrypoints=web"
+      - "traefik.http.services.litellm.loadbalancer.server.port=4000"
+      - "traefik.http.middlewares.litellm-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.litellm-headers.headers.sslhost=${TRAEFIK_DOMAIN:-localhost}"
+      - "traefik.http.middlewares.litellm-headers.headers.sslredirect=true"
+      - "traefik.http.middlewares.litellm-headers.headers.stsseconds=315360000"
+      - "traefik.http.middlewares.litellm-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.litellm-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.litellm-headers.headers.forcestsheader=true"
+      - "traefik.http.middlewares.litellm-headers.headers.stsincludesubdomains=true"
+      - "traefik.http.middlewares.litellm-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.litellm-headers.headers.customframeoptionsvalue=SAMEORIGIN"
+      - "traefik.http.routers.litellm.middlewares=litellm-headers"
+    networks:
+      - litellm-network
+      - traefik-network
+
+networks:
+  cloudflared-network:
+    driver: bridge
+  traefik-network:
+    driver: bridge

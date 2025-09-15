@@ -1,2 +1,0 @@
-nomic-embed-text-v2-moe-GGUF
-Gemma-3-4b-it-GGUF
