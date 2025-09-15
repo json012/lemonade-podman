@@ -1,4 +1,4 @@
-This is a configuration for running [Lemonade](https://www.amd.com/en/developer/resources/technical-articles/unlocking-a-wave-of-llm-apps-on-ryzen-ai-through-lemonade-server.html) as part of a [LiteLLM](https://docs.litellm.ai/) proxy stack. The setup includes Lemonade model backends, PostgreSQL database, and optional Traefik + Cloudflare integration for online hosting.
+This is a configuration for running [Lemonade](https://www.amd.com/en/developer/resources/technical-articles/unlocking-a-wave-of-llm-apps-on-ryzen-ai-through-lemonade-server.html) as part of a [LiteLLM](https://docs.litellm.ai/) proxy stack. Good for running multiple LLMs in parallel on a Ryzen AI 300 series processor. The setup includes Lemonade model backends, PostgreSQL database, and optional Traefik + Cloudflare integration for online hosting.
 
 Awaiting https://github.com/lemonade-sdk/lemonade/issues/5 for a performance boost with [NPU hybrid inference](https://lemonade-server.ai/docs/faq/#1-does-hybrid-inference-with-the-npu-only-work-on-windows).
 
