@@ -53,6 +53,8 @@ services:
       LEMONADE_LLAMACPP: vulkan
       LEMONADE_HOST: 0.0.0.0
       LEMONADE_CACHE: /home/ubuntu/.cache
+    ports:
+      - "8000:8000"
     volumes:
       - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
     devices:

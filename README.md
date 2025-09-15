@@ -98,14 +98,14 @@ For an idempotent setup, use the included Ansible playbook.
 Quickstart (runs on localhost by default):
 
 ```
-ansible-playbook -i localhost, ./ansible/playbook.yml
+ansible-playbook -i localhost, ./ansible-playbook.yml
 ```
 
 To enable online hosting (requires litellm domain and cloudflare tunnel token):
 
 ```
 cd ansible
-ansible-playbook -i localhost, ./ansible/playbook.yml -e enable_online_hosting=true
+ansible-playbook -i localhost, ./ansible-playbook.yml -e enable_online_hosting=true
 ```
 
 To run against a remote host via SSH (using ~/.ssh/config):

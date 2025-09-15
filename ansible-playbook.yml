@@ -4,7 +4,7 @@
   gather_facts: true
 
   vars:
-    project_root: "../"
+    project_root: "./"
 
   pre_tasks:
     - name: Set enable_online_hosting with default
