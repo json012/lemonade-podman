@@ -10,7 +10,10 @@ services:
       - no-new-privileges:true
     read_only: true
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - type: bind
+        source: /run/user/1000/podman/podman.sock  # Update this to the correct user's socket path, replacing 1000 with your user ID
+        target: /var/run/docker.sock
+        read_only: true
       - ./traefik.yaml:/etc/traefik/traefik.yml:Z
       - ./traefik-hosts.yaml:/hosts.yaml:Z
     networks:
@@ -47,11 +50,11 @@ services:
     image: ghcr.io/berriai/litellm-non_root:main-stable
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.litellm.rule=Host(`${TRAEFIK_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.litellm.rule=Host(`${LITELLM_HOST}`)"
       - "traefik.http.routers.litellm.entrypoints=web"
       - "traefik.http.services.litellm.loadbalancer.server.port=4000"
       - "traefik.http.middlewares.litellm-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
-      - "traefik.http.middlewares.litellm-headers.headers.sslhost=${TRAEFIK_DOMAIN:-localhost}"
+      - "traefik.http.middlewares.litellm-headers.headers.sslhost=${LITELLM_HOST}"
       - "traefik.http.middlewares.litellm-headers.headers.sslredirect=true"
       - "traefik.http.middlewares.litellm-headers.headers.stsseconds=315360000"
       - "traefik.http.middlewares.litellm-headers.headers.browserxssfilter=true"

@@ -35,11 +35,12 @@
             (['docker-compose.online.yml', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else [])
           }}
 
-    - name: Check if required configuration files exist
+    - name: Check if required configuration files exist locally
       stat:
-        path: "{{ project_root }}/{{ item }}"
+        path: "{{ item }}"
       loop: "{{ required_files }}"
       register: required_files_check
+      delegate_to: localhost
 
     - name: Fail if required files are missing
       fail:
@@ -71,14 +72,15 @@
         required_env_vars: >-
           {{
             ['LITELLM_MASTER_KEY', 'LITELLM_SALT_KEY', 'LITELLM_HOST', 'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'LITELLM_DB_URL'] +
-            (['TUNNEL_TOKEN', 'TRAEFIK_DOMAIN'] if enable_online_hosting else [])
+            (['TUNNEL_TOKEN'] if enable_online_hosting else [])
           }}
 
     - name: Check each environment variable individually
-      shell: "grep -q '^{{ item }}=' {{ project_root }}/.env"
+      shell: "grep -q '^{{ item }}=' .env"
       loop: "{{ required_env_vars }}"
       register: env_var_checks
       failed_when: false
+      delegate_to: localhost
 
     - name: Set missing environment variables
       set_fact:
@@ -112,6 +114,7 @@
       command: "which {{ item }}"
       loop:
         - "podman"
+        - "podman-compose"
       register: package_check
       failed_when: package_check.rc != 0
       changed_when: false
@@ -150,7 +153,7 @@
 
     - name: Copy litellm.yaml to target host
       copy:
-        src: "{{ project_root }}/litellm.example.yaml"
+        src: "{{ project_root }}/litellm.yaml"
         dest: "{{ deployment_dir }}/litellm.yaml"
         mode: "0644"
 
@@ -161,15 +164,34 @@
         mode: "0644"
       loop:
         - "traefik.yaml"
-        - "traefik-hosts.example.yaml"
+        - "traefik-hosts.yaml"
       when: enable_online_hosting
 
+    - name: Copy docker-compose.online.yml to target host
+      copy:
+        src: "{{ project_root }}/docker-compose.online.yml"
+        dest: "{{ deployment_dir }}/docker-compose.online.yml"
+        mode: "0644"
+      when: enable_online_hosting
+
+    - name: Get current user ID
+      shell: id -u
+      register: current_user_id
+      changed_when: false
+
+    - name: Update socket path in docker-compose.online.yml for current user
+      replace:
+        path: "{{ deployment_dir }}/docker-compose.online.yml"
+        regexp: '/run/user/1000/podman/podman.sock'
+        replace: '/run/user/{{ current_user_id.stdout }}/podman/podman.sock'
+      when: enable_online_hosting and current_user_id.stdout != '1000'
+
     - name: Stop existing containers
-      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} down"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} down"
       ignore_errors: true
 
-    - name: Start containers with podman-compose
-      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} up -d"
+    - name: Start containers with podman compose
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} up -d"
       register: compose_start_result
 
     - name: Display compose start result
@@ -195,7 +217,7 @@
       when: use_systemd
 
     - name: Register compose project with systemd
-      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action register"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action register"
       register: systemd_register_result
       when: use_systemd
 
@@ -205,7 +227,7 @@
       when: use_systemd
 
     - name: Create and save systemd unit file
-      shell: "cd {{ deployment_dir }} && podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action create-unit > {{ ansible_env.HOME }}/.config/systemd/user/podman-compose@.service"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action create-unit > {{ ansible_env.HOME }}/.config/systemd/user/podman compose@.service"
       when: use_systemd
 
     - name: Reload user systemd daemon
@@ -213,16 +235,16 @@
       when: use_systemd
 
     - name: Enable systemd service
-      shell: "systemctl --user enable podman-compose@lemonade"
+      shell: "systemctl --user enable podman compose@lemonade"
       when: use_systemd
 
     - name: Start systemd service
-      shell: "systemctl --user start podman-compose@lemonade"
+      shell: "systemctl --user start podman compose@lemonade"
       register: systemd_service_result
       when: use_systemd
 
     - name: Display systemd service status
-      shell: "systemctl --user status podman-compose@lemonade"
+      shell: "systemctl --user status podman compose@lemonade"
       register: systemd_status_result
       when: use_systemd
 
@@ -238,18 +260,18 @@
           
           {% if use_systemd %}
           🔧 Systemd service management:
-          User systemd service is created and enabled as podman-compose@lemonade.service
+          User systemd service is created and enabled as podman compose@lemonade.service
           
-          View service status: systemctl --user status podman-compose@lemonade
+          View service status: systemctl --user status podman compose@lemonade
           
           📋 Pod management commands:
           • View pod stats: podman pod stats pod_lemonade
           • View pod logs: podman pod logs --tail=10 -f pod_lemonade
           {% else %}
           📋 Management commands:
-          • View logs: cd {{ deployment_dir }} && podman-compose logs -f
-          • Stop stack: cd {{ deployment_dir }} && podman-compose down
-          • Restart stack: cd {{ deployment_dir }} && podman-compose restart
+          • View logs: cd {{ deployment_dir }} && podman compose logs -f
+          • Stop stack: cd {{ deployment_dir }} && podman compose down
+          • Restart stack: cd {{ deployment_dir }} && podman compose restart
           {% endif %}
           
           {% if enable_online_hosting %}

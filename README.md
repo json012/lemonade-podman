@@ -105,10 +105,10 @@ If you prefer to set up manually, follow these steps:
 
 ```bash
 # Start all services
-podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml up -d
+podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml up -d
 
 # With online hosting
-podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml -f docker-compose.online.yml up -d
+podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml -f docker-compose.online.yml up -d
 ```
 
 #### 3. Verify Services
@@ -162,7 +162,7 @@ podman logs -f lemonade-Gemma-3-4b-it-GGUF
 podman restart lemonade-Gemma-3-4b-it-GGUF
 
 # Stop all services
-podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml down
+podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml down
 ```
 
 ## API Usage
@@ -214,7 +214,7 @@ To enable online hosting with your own domain:
 
 4. **Deploy with Online Hosting**:
    ```bash
-   podman-compose -f docker-compose.yml -f docker-compose.proxied-models.yml -f docker-compose.online.yml up -d
+   podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml -f docker-compose.online.yml up -d
    ```
 
 ## Troubleshooting
