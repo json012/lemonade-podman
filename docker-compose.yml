@@ -48,6 +48,7 @@ services:
   # This service is only for convenience, and can be safely stopped if you don't need the local Lemonade interface
   lemonade:
     image: ghcr.io/json012/lemonade:latest
+    pull_policy: newer
     container_name: lemonade
     environment:
       LEMONADE_LLAMACPP: vulkan

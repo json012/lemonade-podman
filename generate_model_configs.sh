@@ -75,6 +75,8 @@ for model in $models; do
   lemonade-$model:
     container_name: lemonade-$model
     image: ghcr.io/json012/lemonade:latest
+    pull_policy: newer
+    user: ubuntu
     environment:
       LEMONADE_LLAMACPP: vulkan
       LEMONADE_HOST: 0.0.0.0
