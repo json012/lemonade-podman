@@ -25,6 +25,9 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       DATABASE_URL: ${LITELLM_DB_URL}
+      LITELLM_REDIS_PASSWORD: ${LITELLM_REDIS_PASSWORD}
+      USE_PRISMA_MIGRATE: true
+      DEFAULT_NUM_WORKERS_LITELLM_PROXY: ${LITELLM_DEFAULT_WORKERS}
     volumes:
       - ./litellm.yaml:/app/config.yaml:Z
     networks:
@@ -34,6 +37,7 @@ services:
       - "4000:4000"
     depends_on:
       - litellm-db
+      - litellm-redis
     restart: always
     command: --config /app/config.yaml
     healthcheck:
@@ -41,6 +45,22 @@ services:
       interval: 30s
       timeout: 5s
       start_period: 15s
+
+  litellm-redis:
+    image: docker.io/library/redis:latest
+    container_name: litellm-redis
+    networks:
+      - litellm-network
+    restart: always
+    environment:
+      LITELLM_REDIS_PASSWORD: ${LITELLM_REDIS_PASSWORD}
+    command: redis-server --requirepass ${LITELLM_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${LITELLM_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
   # Base unproxied Lemonade Service
   # Preloaded models instances can be added by creating a docker-compose.models.yml file
