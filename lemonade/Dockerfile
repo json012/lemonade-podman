@@ -6,8 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv python3-pip pipx \
     curl wget unzip \
     build-essential cmake \
-    vulkan-tools vulkan-validationlayers \
-    libvulkan-dev \
+    vulkan-tools vulkan-validationlayers mesa-vulkan-drivers \
+    libvulkan-dev pciutils \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/lemonade && chown -R ubuntu:ubuntu /opt/lemonade
