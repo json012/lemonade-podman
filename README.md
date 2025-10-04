@@ -223,11 +223,13 @@ To enable online hosting with your own domain:
 
 **GPU Access Problems**:
 ```bash
+sudo update-pciids
+
 # Check device permissions
-ls -la /dev/dri/renderD128
+ls -la /dev/dri
 ls -la /dev/kfd
 
-# Verify user groups
+# Verify user groups (should be in render and video)
 groups $USER
 
 # Test Vulkan support

@@ -41,10 +41,16 @@ services:
     restart: always
     command: --config /app/config.yaml
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:4000/health/liveliness"]
+      test: [
+        "CMD",
+        "python3",
+        "-c",
+        "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"
+      ]
       interval: 30s
       timeout: 5s
       start_period: 15s
+      retries: 3
 
   litellm-redis:
     image: docker.io/library/redis:latest
@@ -61,11 +67,10 @@ services:
       timeout: 5s
       retries: 5
 
-
   # Base unproxied Lemonade Service
   # Preloaded models instances can be added by creating a docker-compose.models.yml file
   # and chaining that file after this one in your `docker compose` command
-  # This service is only for convenience, and can be safely stopped if you don't need the local Lemonade interface
+  # This service is only for convenience, and can be safely stopped if you don't need the local Lemonade interface.
   lemonade:
     image: ghcr.io/json012/lemonade:latest
     pull_policy: newer
@@ -79,9 +84,9 @@ services:
     volumes:
       - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
     devices:
-      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
-      - /dev/dri/renderD128:/dev/dri/renderD128
-    restart: unless-stopped
+      # Vulkan needs /dev/dri; ROCm would need /dev/kfd too (not used here)
+      - /dev/dri:/dev/dri
+    restart: "no"
     command: [
       "uv",
       "run",
@@ -90,6 +95,76 @@ services:
       "--llamacpp",
       "vulkan"
     ]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  # Two nomic embed text instances for load balancing
+  # These are included with the core config because litellm-pgvector depends on them
+  lemonade-nomic-embed-text-v2-moe-GGUF-1:
+    container_name: lemonade-nomic-embed-text-v2-moe-GGUF-1
+    image: ghcr.io/json012/lemonade:latest
+    pull_policy: newer
+    user: ubuntu
+    environment:
+      LEMONADE_LLAMACPP: vulkan
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_CACHE: /home/ubuntu/.cache
+    volumes:
+      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - litellm-network
+    devices:
+      # Vulkan needs /dev/dri; ROCm would need /dev/kfd too (not used here)
+      - /dev/dri:/dev/dri
+    restart: always
+    command: [
+      "uv",
+      "run",
+      "lemonade-server-dev",
+      "run",
+      "nomic-embed-text-v2-moe-GGUF",
+      "--llamacpp",
+      "vulkan"
+    ]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  # Two nomic embed text instances for load balancing
+  # These are included with the core config because litellm-pgvector depends on them
+  lemonade-nomic-embed-text-v2-moe-GGUF-2:
+    container_name: lemonade-nomic-embed-text-v2-moe-GGUF-2
+    image: ghcr.io/json012/lemonade:latest
+    pull_policy: newer
+    user: ubuntu
+    environment:
+      LEMONADE_LLAMACPP: vulkan
+      LEMONADE_HOST: 0.0.0.0
+      LEMONADE_CACHE: /home/ubuntu/.cache
+    volumes:
+      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - litellm-network
+    devices:
+      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
+      - /dev/dri:/dev/dri
+    restart: always
+    command: [
+      "uv",
+      "run",
+      "lemonade-server-dev",
+      "run",
+      "nomic-embed-text-v2-moe-GGUF",
+      "--llamacpp",
+      "vulkan"
+    ]
+    depends_on:
+      - lemonade-nomic-embed-text-v2-moe-GGUF-1
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
       interval: 30s

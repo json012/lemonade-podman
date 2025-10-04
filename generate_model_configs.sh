@@ -301,8 +301,8 @@ EOF
     networks:
       - litellm-network
     devices:
-      # Vulkan needs the render node; ROCm/HIP would need /dev/kfd (not used here)
-      - /dev/dri/renderD128:/dev/dri/renderD128
+      # Vulkan needs /dev/dri; ROCm would need /dev/kfd too (not used here)
+      - /dev/dri:/dev/dri
     restart: always
     command: [
       "uv",
