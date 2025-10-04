@@ -1,12 +1,21 @@
 ---
 - name: Lemonade via LiteLLM stack (Docker Compose)
-  hosts: "{{ target_host | default('localhost') }}"
+  hosts: all
+  connection: "{{ 'local' if inventory_hostname == 'localhost' else 'ssh' }}"
   gather_facts: true
 
   vars:
     project_root: "./"
 
   pre_tasks:
+    - name: Display deployment target
+      debug:
+        msg: |
+          📍 Deploying to: {{ inventory_hostname }}
+          Connection: {{ 'local' if inventory_hostname == 'localhost' else 'ssh' }}
+      run_once: true
+      tags: always
+
     - name: Set enable_online_hosting with default
       set_fact:
         enable_online_hosting: "{{ enable_online_hosting | default(false) }}"
@@ -15,12 +24,17 @@
       set_fact:
         use_systemd: "{{ use_systemd | default(false) }}"
 
+    - name: Set add_rag with default
+      set_fact:
+        add_rag: "{{ add_rag | default(false) }}"
+
     - name: Set compose files based on deployment type
       set_fact:
         compose_files: >-
           {{
             ['docker-compose.yml', 'docker-compose.proxied-models.yml'] +
-            (['docker-compose.online.yml'] if enable_online_hosting else [])
+            (['docker-compose.online.yml'] if enable_online_hosting else []) +
+            (['docker-compose.pgvector.yml'] if add_rag else [])
           }}
 
     - name: Derive deployment directory
@@ -32,7 +46,8 @@
         required_files: >-
           {{
             ['.env', 'docker-compose.yml', 'docker-compose.proxied-models.yml', 'litellm.yaml'] +
-            (['docker-compose.online.yml', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else [])
+            (['docker-compose.online.yml', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else []) +
+            (['docker-compose.pgvector.yml'] if add_rag else [])
           }}
 
     - name: Check if required configuration files exist locally
@@ -71,8 +86,9 @@
       set_fact:
         required_env_vars: >-
           {{
-            ['LITELLM_MASTER_KEY', 'LITELLM_SALT_KEY', 'LITELLM_HOST', 'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'LITELLM_DB_URL'] +
-            (['TUNNEL_TOKEN'] if enable_online_hosting else [])
+            ['LITELLM_MASTER_KEY', 'LITELLM_SALT_KEY', 'LITELLM_HOST', 'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD'] +
+            (['TUNNEL_TOKEN'] if enable_online_hosting else []) +
+            (['RAG_DB_NAME', 'RAG_DB_USER', 'RAG_DB_PASS', 'RAG_SERVER_API_KEY', 'RAG_SERVER_HOST'] if add_rag else [])
           }}
 
     - name: Check each environment variable individually
@@ -137,6 +153,34 @@
           sudo apt install podman
       when: package_check.results | selectattr('rc', 'ne', 0) | list | length > 0
 
+    - name: Check if git is available
+      command: "which git"
+      register: git_check
+      failed_when: git_check.rc != 0
+      changed_when: false
+
+    - name: Fail if git is missing
+      fail:
+        msg: |
+          ❌ MISSING GIT
+          
+          Git is required to handle submodules but not found.
+          
+          📋 Install git with your package manager:
+          sudo dnf install git
+          # or
+          sudo apt install git
+      when: git_check.rc != 0
+
+    - name: Initialize git submodules
+      shell: "cd {{ project_root }} && git submodule update --init --recursive"
+      register: submodule_init_result
+      delegate_to: localhost
+
+    - name: Display submodule initialization result
+      debug:
+        var: submodule_init_result.stdout_lines
+
   tasks:
     - name: Copy .env file from project root to user vars directory
       copy:
@@ -167,12 +211,19 @@
         - "traefik-hosts.yaml"
       when: enable_online_hosting
 
-    - name: Copy docker-compose.online.yml to target host
+    - name: Copy litellm-pgvector submodule to target host
       copy:
-        src: "{{ project_root }}/docker-compose.online.yml"
-        dest: "{{ deployment_dir }}/docker-compose.online.yml"
+        src: "{{ project_root }}/litellm-pgvector/"
+        dest: "{{ deployment_dir }}/litellm-pgvector/"
         mode: "0644"
-      when: enable_online_hosting
+      when: add_rag
+
+    - name: Copy postgres directory to target host
+      copy:
+        src: "{{ project_root }}/pg-vector/"
+        dest: "{{ deployment_dir }}/pg-vector/"
+        mode: "0644"
+      when: add_rag
 
     - name: Get current user ID
       shell: id -u
@@ -187,16 +238,83 @@
       when: enable_online_hosting and current_user_id.stdout != '1000'
 
     - name: Stop existing containers
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} down"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} down"
       ignore_errors: true
 
     - name: Start containers with podman compose
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} up -d"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} up -d"
       register: compose_start_result
 
     - name: Display compose start result
       debug:
         var: compose_start_result.stdout_lines
+
+    - name: Wait for LiteLLM to be ready
+      shell: "curl -f http://localhost:4000/health/liveliness"
+      register: litellm_health
+      until: litellm_health.rc == 0
+      retries: 30
+      delay: 10
+      when: add_rag
+      changed_when: false
+
+    - name: Check if LITELLM_RAG_EMBEDDING_API_KEY already exists in .env file
+      shell: "grep '^LITELLM_RAG_EMBEDDING_API_KEY=' {{ deployment_dir }}/.env | cut -d'=' -f2-"
+      register: existing_rag_api_key
+      when: add_rag
+      failed_when: false
+      changed_when: false
+
+    - name: Read LITELLM_MASTER_KEY from .env file
+      shell: "grep '^LITELLM_MASTER_KEY=' {{ deployment_dir }}/.env | cut -d'=' -f2-"
+      register: master_key_result
+      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0)
+      changed_when: false
+
+    - name: Generate API key for embedding model
+      shell: |
+        curl -s -X POST 'http://localhost:4000/key/generate' \
+          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "models": ["lemonade-nomic-embed-text-v2-moe-GGUF"],
+            "key_alias": "rag_embedding_key"
+          }'
+      register: api_key_response
+      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0)
+      failed_when: false
+      changed_when: false
+
+    - name: Display API key response for debugging
+      debug:
+        var: api_key_response.stdout
+      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined
+
+    - name: Check if API key generation returned an error
+      set_fact:
+        api_key_generation_failed: "{{ (api_key_response.stdout | from_json).error is defined }}"
+      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined and api_key_response.stdout | length > 0
+
+    - name: Display warning if key already exists in LiteLLM
+      debug:
+        msg: "⚠️  API key with alias 'rag_embedding_key' already exists in LiteLLM. Skipping generation. If you need to regenerate it, delete the key in LiteLLM first or set LITELLM_RAG_EMBEDDING_API_KEY manually in your .env file."
+      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
+
+    - name: Extract API key from response
+      set_fact:
+        generated_api_key: "{{ (api_key_response.stdout | from_json).key | default((api_key_response.stdout | from_json).token) }}"
+      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined and api_key_response.stdout | length > 0 and (api_key_generation_failed is not defined or not api_key_generation_failed)
+
+    - name: Update .env file with generated API key
+      lineinfile:
+        path: "{{ deployment_dir }}/.env"
+        regexp: '^LITELLM_RAG_EMBEDDING_API_KEY='
+        line: "LITELLM_RAG_EMBEDDING_API_KEY={{ generated_api_key }}"
+      when: add_rag and generated_api_key is defined
+
+    - name: Restart pgvector container to use new API key
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} -f docker-compose.pgvector.yml restart litellm-pgvector"
+      when: add_rag and generated_api_key is defined
 
     - name: Show running containers
       shell: "podman ps --format 'table {{ \"{{.Names}}\" }}\t{{ \"{{.Status}}\" }}\t{{ \"{{.Ports}}\" }}'"
@@ -217,7 +335,7 @@
       when: use_systemd
 
     - name: Register compose project with systemd
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action register"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} systemd --action register"
       register: systemd_register_result
       when: use_systemd
 
@@ -227,7 +345,7 @@
       when: use_systemd
 
     - name: Create and save systemd unit file
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} systemd --action create-unit > {{ ansible_env.HOME }}/.config/systemd/user/podman compose@.service"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} systemd --action create-unit > '{{ ansible_env.HOME }}/.config/systemd/user/podman-compose@.service'"
       when: use_systemd
 
     - name: Reload user systemd daemon
@@ -235,16 +353,16 @@
       when: use_systemd
 
     - name: Enable systemd service
-      shell: "systemctl --user enable podman compose@lemonade"
+      shell: "systemctl --user enable podman-compose@lemonade"
       when: use_systemd
 
     - name: Start systemd service
-      shell: "systemctl --user start podman compose@lemonade"
+      shell: "systemctl --user start podman-compose@lemonade"
       register: systemd_service_result
       when: use_systemd
 
     - name: Display systemd service status
-      shell: "systemctl --user status podman compose@lemonade"
+      shell: "systemctl --user status podman-compose@lemonade"
       register: systemd_status_result
       when: use_systemd
 
@@ -260,9 +378,9 @@
           
           {% if use_systemd %}
           🔧 Systemd service management:
-          User systemd service is created and enabled as podman compose@lemonade.service
+          User systemd service is created and enabled as podman-compose@lemonade.service
           
-          View service status: systemctl --user status podman compose@lemonade
+          View service status: systemctl --user status podman-compose@lemonade
           
           📋 Pod management commands:
           • View pod stats: podman pod stats pod_lemonade
@@ -278,4 +396,10 @@
           🌐 Online hosting is enabled. Your LiteLLM instance should be accessible via your configured domain.
           {% else %}
           🏠 Local deployment. LiteLLM is accessible at http://localhost:4000
+          {% endif %}
+          
+          {% if add_rag %}
+          🔍 PGVector RAG support is enabled!
+          • PGVector API is accessible at http://localhost:4001
+          • Uses lemonade-nomic-embed-text-v2-moe-GGUF embedding model
           {% endif %}

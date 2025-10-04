@@ -84,17 +84,26 @@ sudo apt install ansible
 
 ```bash
 # Basic local setup
-ansible-playbook -i localhost, ./ansible-playbook.yml
+ansible-playbook -i 'localhost,' ./ansible-playbook.yml
 
 # With online hosting (requires domain and Cloudflare tunnel token)
-ansible-playbook -i localhost, ./ansible-playbook.yml -e enable_online_hosting=true
+ansible-playbook -i 'localhost,' ./ansible-playbook.yml -e enable_online_hosting=true
 
 # With systemd service management (for persistence after reboot)
-ansible-playbook -i localhost, ./ansible-playbook.yml -e use_systemd=true
+ansible-playbook -i 'localhost,' ./ansible-playbook.yml -e use_systemd=true
 
-# Remote deployment via SSH
-ansible-playbook -i 'my-ssh-alias,' ./ansible-playbook.yml -e target_host=my-ssh-alias
+# Remote deployment via SSH (note the comma after the hostname)
+ansible-playbook -i 'my-ssh-alias,' ./ansible-playbook.yml
+
+# Remote with additional options (RAG, online hosting, systemd)
+ansible-playbook -i 'web@mandel,' ./ansible-playbook.yml -e use_systemd=true -e add_rag=true -e enable_online_hosting=true
 ```
+
+**Important:** 
+- Always specify inventory with `-i 'hostname,'` including the **trailing comma**
+- For **localhost**: `-i 'localhost,'`
+- For **remote hosts**: `-i 'user@hostname,'` or `-i 'ssh-alias,'`
+- Without the comma, Ansible treats it as a file path, inventory parsing fails, and the playbook will skip execution with "no hosts matched"
 
 ### Option 2: Manual Setup
 
