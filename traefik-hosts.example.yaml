@@ -8,17 +8,40 @@ http:
       loadBalancer:
         servers:
         - url: http://litellm:4000
+    litellm-pgvector:
+      loadBalancer:
+        servers:
+        - url: http://litellm-pgvector:4001
   routers:
     litellm:
-      rule: Host(`example.com`)
+      rule: Host(`llm.example.com`)
       service: litellm
       middlewares:
         - litellm
+    litellm-pgvector:
+      rule: Host(`rag.example.com`)
+      service: litellm-pgvector
+      middlewares:
+        - litellm-pgvector
   middlewares:
     litellm:
       # Add some security headers
       headers:
-        SSLHost: example.com
+        SSLHost: llm.example.com
+        SSLRedirect: true
+        STSSeconds: 315360000
+        browserXSSFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        STSIncludeSubdomains: true
+        STSPreload: true
+        customFrameOptionsValue: SAMEORIGIN
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+    litellm-pgvector:
+      # Add some security headers
+      headers:
+        SSLHost: rag.example.com
         SSLRedirect: true
         STSSeconds: 315360000
         browserXSSFilter: true
