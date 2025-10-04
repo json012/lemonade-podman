@@ -16,3 +16,6 @@ RUN cd /tmp \
     && make install \
     && cd .. \
     && rm -rf pgvector
+
+# Copy initialization script to enable vector extension
+COPY init.sql /docker-entrypoint-initdb.d/
