@@ -277,7 +277,7 @@
           -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
           -H 'Content-Type: application/json' \
           -d '{
-            "models": ["lemonade-nomic-embed-text-v2-moe-GGUF"],
+            "models": ["nomic-embed-text-v2-moe-GGUF"],
             "key_alias": "rag_embedding_key"
           }'
       register: api_key_response
@@ -297,8 +297,37 @@
 
     - name: Display warning if key already exists in LiteLLM
       debug:
-        msg: "⚠️  API key with alias 'rag_embedding_key' already exists in LiteLLM. Skipping generation. If you need to regenerate it, delete the key in LiteLLM first or set LITELLM_RAG_EMBEDDING_API_KEY manually in your .env file."
+        msg: "⚠️  API key with alias 'rag_embedding_key' already exists in LiteLLM. Deleting and recreating it..."
       when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
+
+    - name: Delete existing API key by alias
+      shell: |
+        curl -s -X POST 'http://localhost:4000/key/delete' \
+          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
+          -H 'Content-Type: application/json' \
+          -d '{"key_aliases": ["rag_embedding_key"]}'
+      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
+      failed_when: false
+      changed_when: false
+
+    - name: Regenerate API key after deletion
+      shell: |
+        curl -s -X POST 'http://localhost:4000/key/generate' \
+          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "models": ["nomic-embed-text-v2-moe-GGUF"],
+            "key_alias": "rag_embedding_key"
+          }'
+      register: regenerated_api_key_response
+      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
+      failed_when: false
+      changed_when: false
+
+    - name: Extract regenerated API key from response
+      set_fact:
+        generated_api_key: "{{ (regenerated_api_key_response.stdout | from_json).key | default((regenerated_api_key_response.stdout | from_json).token) }}"
+      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed and regenerated_api_key_response.stdout is defined
 
     - name: Extract API key from response
       set_fact:
