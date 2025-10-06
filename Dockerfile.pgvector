@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Install system dependencies including git for patch application
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    postgresql-client \
+    patch \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Copy the submodule source code
+COPY litellm-pgvector/ .
+
+# Apply custom patches
+COPY patches/pgvector-768-dimensions.patch /tmp/
+COPY patches/pgvector-fix-file-counts-sql.patch /tmp/
+RUN patch -p1 < /tmp/pgvector-768-dimensions.patch && \
+    patch -p1 < /tmp/pgvector-fix-file-counts-sql.patch && \
+    rm /tmp/*.patch
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Generate Prisma client
+RUN prisma generate
+
+# Expose port
+EXPOSE 8000
+
+# Command to run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+

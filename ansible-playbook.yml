@@ -225,6 +225,20 @@
         mode: "0644"
       when: add_rag
 
+    - name: Copy patches directory to target host
+      copy:
+        src: "{{ project_root }}/patches/"
+        dest: "{{ deployment_dir }}/patches/"
+        mode: "0644"
+      when: add_rag
+
+    - name: Copy custom Dockerfile for pgvector to target host
+      copy:
+        src: "{{ project_root }}/Dockerfile.pgvector"
+        dest: "{{ deployment_dir }}/Dockerfile.pgvector"
+        mode: "0644"
+      when: add_rag
+
     - name: Get current user ID
       shell: id -u
       register: current_user_id

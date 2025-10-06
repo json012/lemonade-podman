@@ -23,7 +23,8 @@ services:
 
   litellm-pgvector:
     build:
-      context: ./litellm-pgvector
+      context: .
+      dockerfile: Dockerfile.pgvector
     entrypoint: ["/bin/sh", "-c", "prisma db push --skip-generate && exec \"$@\"", "--"]
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4001"]
     environment:
@@ -35,12 +36,12 @@ services:
       - EMBEDDING__BASE_URL=http://litellm:4000
       - EMBEDDING__API_KEY=${LITELLM_RAG_EMBEDDING_API_KEY}
       - EMBEDDING__DIMENSIONS=768
-      - DB_FIELDS__ID_FIELD="id"
-      - DB_FIELDS__CONTENT_FIELD="content"
-      - DB_FIELDS__METADATA_FIELD="metadata"
-      - DB_FIELDS__EMBEDDING_FIELD="embedding"
-      - DB_FIELDS__VECTOR_STORE_ID_FIELD="vector_store_id"
-      - DB_FIELDS__CREATED_AT_FIELD="created_at"
+      - DB_FIELDS__ID_FIELD=id
+      - DB_FIELDS__CONTENT_FIELD=content
+      - DB_FIELDS__METADATA_FIELD=metadata
+      - DB_FIELDS__EMBEDDING_FIELD=embedding
+      - DB_FIELDS__VECTOR_STORE_ID_FIELD=vector_store_id
+      - DB_FIELDS__CREATED_AT_FIELD=created_at
     volumes:
       - litellm-pgvector-data:/var/lib/postgresql/data
       - ./pg-vector/postgresql.conf:/etc/postgresql/postgresql.conf:ro
