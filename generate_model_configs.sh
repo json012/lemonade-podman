@@ -311,7 +311,9 @@ EOF
       "run",
       "$model",
       "--llamacpp",
-      "vulkan"
+      "vulkan",
+      "--ctx-size",
+      "32768"
     ]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/api/v1/health"]
