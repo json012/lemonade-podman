@@ -252,11 +252,11 @@
       when: enable_online_hosting and current_user_id.stdout != '1000'
 
     - name: Stop existing containers
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} down"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} down --remove-orphans"
       ignore_errors: true
 
     - name: Start containers with podman compose
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} up -d"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} up -d --remove-orphans"
       register: compose_start_result
 
     - name: Display compose start result
