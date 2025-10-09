@@ -32,3 +32,6 @@ docker-compose.proxied-models.yml
 
 vars/generated/
 
+# Test results
+tests/results/
+
