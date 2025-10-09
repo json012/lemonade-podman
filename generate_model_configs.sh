@@ -194,6 +194,10 @@ router_settings:
   redis_host: litellm-redis
   redis_password: os.environ/LITELLM_REDIS_PASSWORD
   redis_port: 6379
+  optional_pre_call_checks: ["responses_api_deployment_check"]
+
+
+
 
 # Model routing configuration
 model_list:
