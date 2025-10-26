@@ -195,9 +195,10 @@ router_settings:
   redis_password: os.environ/LITELLM_REDIS_PASSWORD
   redis_port: 6379
   optional_pre_call_checks: ["responses_api_deployment_check"]
-
-
-
+  fallbacks: [
+    {"gpt-oss-120b-mxfp-GGUF": ["gpt-oss-20b-mxfp4-GGUF", "o3-mini"]},
+    {"gpt-oss-20b-mxfp4-GGUF": ["o3-mini"]},
+  ]
 
 # Model routing configuration
 model_list:
