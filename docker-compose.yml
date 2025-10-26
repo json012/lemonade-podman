@@ -67,6 +67,26 @@ services:
       timeout: 5s
       retries: 5
 
+  inference:
+    build:
+      context: ./inference
+    container_name: inference
+    image: inference:latest
+    devices:
+      - /dev/kfd:/dev/kfd
+    restart: always
+    environment:
+      INFERENCE_HOST: ${INFERENCE_HOST}
+      API_KEY: ${INFERENCE_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    networks:
+      - litellm-network
+
   # Base unproxied Lemonade Service
   # Preloaded models instances can be added by creating a docker-compose.models.yml file
   # and chaining that file after this one in your `docker compose` command

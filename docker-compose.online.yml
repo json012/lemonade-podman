@@ -68,6 +68,43 @@ services:
       - litellm-network
       - traefik-network
 
+  inference:
+    build:
+      context: ./inference
+    container_name: inference
+    image: inference:latest
+    devices:
+      - /dev/kfd:/dev/kfd
+    restart: always
+    environment:
+      INFERENCE_HOST: ${INFERENCE_HOST}
+      API_KEY: ${INFERENCE_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.inference.rule=Host(`${INFERENCE_HOST}`)"
+      - "traefik.http.routers.inference.entrypoints=web"
+      - "traefik.http.services.inference.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.inference-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.inference-headers.headers.sslhost=${INFERENCE_HOST}"
+      - "traefik.http.middlewares.inference-headers.headers.sslredirect=true"
+      - "traefik.http.middlewares.inference-headers.headers.stsseconds=315360000"
+      - "traefik.http.middlewares.inference-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.inference-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.inference-headers.headers.forcestsheader=true"
+      - "traefik.http.middlewares.inference-headers.headers.stsincludesubdomains=true"
+      - "traefik.http.middlewares.inference-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.inference-headers.headers.customframeoptionsvalue=SAMEORIGIN"
+      - "traefik.http.routers.inference.middlewares=inference-headers"
+    networks:
+      - litellm-network
+      - traefik-network
+
 networks:
   cloudflared-network:
     driver: bridge
