@@ -1,0 +1,54 @@
+# This file is intended to be chained with the other docker-compose files in this repo. 
+# If it is not, you will need to redclare the networks and volumes in this file.
+
+services:
+  qdrant:
+    image: docker.io/qdrant/qdrant:v1.15.5-gpu-amd
+    container_name: qdrant
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__HOST=0.0.0.0
+      - QDRANT__SERVICE__API_KEY=${RAG_SERVER_API_KEY}
+      - QDRANT__SERVICE__READ_ONLY_API_KEY=${RAG_SERVER_READ_ONLY_API_KEY}
+      - QDRANT__SERVICE__ENABLE_CORS=true
+      - QDRANT__LOG_LEVEL=INFO
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - 6333:6333
+      - 6334:6334
+    restart: unless-stopped
+    devices:
+      - /dev/kfd
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - litellm-network
+      # Comment out the network and labels below this line if not making available online
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qdrant.rule=Host(`${RAG_SERVER_HOST}`)"
+      - "traefik.http.routers.qdrant.entrypoints=web"
+      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+      - "traefik.http.middlewares.qdrant-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.qdrant-headers.headers.sslhost=${RAG_SERVER_HOST}"
+      - "traefik.http.middlewares.qdrant-headers.headers.sslredirect=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.stsseconds=315360000"
+      - "traefik.http.middlewares.qdrant-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.forcestsheader=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.stsincludesubdomains=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.qdrant-headers.headers.customframeoptionsvalue=SAMEORIGIN"
+      - "traefik.http.routers.qdrant.middlewares=qdrant-headers"
+
+volumes:
+  qdrant-data:
+    driver: local
+

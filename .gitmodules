@@ -1,3 +1,0 @@
-[submodule "litellm-pgvector"]
-	path = litellm-pgvector
-	url = git@github.com:BerriAI/litellm-pgvector.git
