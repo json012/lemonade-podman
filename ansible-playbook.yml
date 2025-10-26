@@ -34,7 +34,7 @@
           {{
             ['docker-compose.yml', 'docker-compose.proxied-models.yml'] +
             (['docker-compose.online.yml'] if enable_online_hosting else []) +
-            (['docker-compose.pgvector.yml'] if add_rag else [])
+            (['docker-compose.rag.yml'] if add_rag else [])
           }}
 
     - name: Derive deployment directory
@@ -47,7 +47,7 @@
           {{
             ['.env', 'docker-compose.yml', 'docker-compose.proxied-models.yml', 'litellm.yaml'] +
             (['docker-compose.online.yml', 'traefik-hosts.yaml', 'traefik.yaml'] if enable_online_hosting else []) +
-            (['docker-compose.pgvector.yml'] if add_rag else [])
+            (['docker-compose.rag.yml'] if add_rag else [])
           }}
 
     - name: Check if required configuration files exist locally
@@ -201,6 +201,16 @@
         dest: "{{ deployment_dir }}/litellm.yaml"
         mode: "0644"
 
+    - name: Copy inference directory to target host
+      synchronize:
+        src: "{{ project_root }}/inference/"
+        dest: "{{ deployment_dir }}/inference/"
+        rsync_opts:
+          - "--exclude=__pycache__"
+          - "--exclude=.venv"
+          - "--exclude=*.pyc"
+        delete: false
+
     - name: Copy traefik configuration files (if online hosting)
       copy:
         src: "{{ project_root }}/{{ item }}"
@@ -211,12 +221,6 @@
         - "traefik-hosts.yaml"
       when: enable_online_hosting
 
-    - name: Copy litellm-pgvector submodule to target host
-      copy:
-        src: "{{ project_root }}/litellm-pgvector/"
-        dest: "{{ deployment_dir }}/litellm-pgvector/"
-        mode: "0644"
-      when: add_rag
 
     - name: Copy postgres directory to target host
       copy:
@@ -232,12 +236,6 @@
         mode: "0644"
       when: add_rag
 
-    - name: Copy custom Dockerfile for pgvector to target host
-      copy:
-        src: "{{ project_root }}/Dockerfile.pgvector"
-        dest: "{{ deployment_dir }}/Dockerfile.pgvector"
-        mode: "0644"
-      when: add_rag
 
     - name: Get current user ID
       shell: id -u
@@ -252,11 +250,11 @@
       when: enable_online_hosting and current_user_id.stdout != '1000'
 
     - name: Stop existing containers
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} down --remove-orphans"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.rag.yml{% endif %} down --remove-orphans"
       ignore_errors: true
 
     - name: Start containers with podman compose
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} up -d --remove-orphans"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.rag.yml{% endif %} up -d --remove-orphans --build"
       register: compose_start_result
 
     - name: Display compose start result
@@ -271,93 +269,6 @@
       delay: 10
       when: add_rag
       changed_when: false
-
-    - name: Check if LITELLM_RAG_EMBEDDING_API_KEY already exists in .env file
-      shell: "grep '^LITELLM_RAG_EMBEDDING_API_KEY=' {{ deployment_dir }}/.env | cut -d'=' -f2-"
-      register: existing_rag_api_key
-      when: add_rag
-      failed_when: false
-      changed_when: false
-
-    - name: Read LITELLM_MASTER_KEY from .env file
-      shell: "grep '^LITELLM_MASTER_KEY=' {{ deployment_dir }}/.env | cut -d'=' -f2-"
-      register: master_key_result
-      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0)
-      changed_when: false
-
-    - name: Generate API key for embedding model
-      shell: |
-        curl -s -X POST 'http://localhost:4000/key/generate' \
-          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
-          -H 'Content-Type: application/json' \
-          -d '{
-            "models": ["nomic-embed-text-v2-moe-GGUF"],
-            "key_alias": "rag_embedding_key"
-          }'
-      register: api_key_response
-      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0)
-      failed_when: false
-      changed_when: false
-
-    - name: Display API key response for debugging
-      debug:
-        var: api_key_response.stdout
-      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined
-
-    - name: Check if API key generation returned an error
-      set_fact:
-        api_key_generation_failed: "{{ (api_key_response.stdout | from_json).error is defined }}"
-      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined and api_key_response.stdout | length > 0
-
-    - name: Display warning if key already exists in LiteLLM
-      debug:
-        msg: "⚠️  API key with alias 'rag_embedding_key' already exists in LiteLLM. Deleting and recreating it..."
-      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
-
-    - name: Delete existing API key by alias
-      shell: |
-        curl -s -X POST 'http://localhost:4000/key/delete' \
-          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
-          -H 'Content-Type: application/json' \
-          -d '{"key_aliases": ["rag_embedding_key"]}'
-      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
-      failed_when: false
-      changed_when: false
-
-    - name: Regenerate API key after deletion
-      shell: |
-        curl -s -X POST 'http://localhost:4000/key/generate' \
-          -H 'Authorization: Bearer {{ master_key_result.stdout }}' \
-          -H 'Content-Type: application/json' \
-          -d '{
-            "models": ["nomic-embed-text-v2-moe-GGUF"],
-            "key_alias": "rag_embedding_key"
-          }'
-      register: regenerated_api_key_response
-      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed
-      failed_when: false
-      changed_when: false
-
-    - name: Extract regenerated API key from response
-      set_fact:
-        generated_api_key: "{{ (regenerated_api_key_response.stdout | from_json).key | default((regenerated_api_key_response.stdout | from_json).token) }}"
-      when: add_rag and api_key_generation_failed is defined and api_key_generation_failed and regenerated_api_key_response.stdout is defined
-
-    - name: Extract API key from response
-      set_fact:
-        generated_api_key: "{{ (api_key_response.stdout | from_json).key | default((api_key_response.stdout | from_json).token) }}"
-      when: add_rag and (existing_rag_api_key.stdout is not defined or existing_rag_api_key.stdout | length == 0) and api_key_response.stdout is defined and api_key_response.stdout | length > 0 and (api_key_generation_failed is not defined or not api_key_generation_failed)
-
-    - name: Update .env file with generated API key
-      lineinfile:
-        path: "{{ deployment_dir }}/.env"
-        regexp: '^LITELLM_RAG_EMBEDDING_API_KEY='
-        line: "LITELLM_RAG_EMBEDDING_API_KEY={{ generated_api_key }}"
-      when: add_rag and generated_api_key is defined
-
-    - name: Restart pgvector container to use new API key
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %} -f docker-compose.pgvector.yml restart litellm-pgvector"
-      when: add_rag and generated_api_key is defined
 
     - name: Show running containers
       shell: "podman ps --format 'table {{ \"{{.Names}}\" }}\t{{ \"{{.Status}}\" }}\t{{ \"{{.Ports}}\" }}'"
@@ -378,7 +289,7 @@
       when: use_systemd
 
     - name: Register compose project with systemd
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} systemd --action register"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.rag.yml{% endif %} systemd --action register"
       register: systemd_register_result
       when: use_systemd
 
@@ -388,7 +299,7 @@
       when: use_systemd
 
     - name: Create and save systemd unit file
-      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.pgvector.yml{% endif %} systemd --action create-unit > '{{ ansible_env.HOME }}/.config/systemd/user/podman-compose@.service'"
+      shell: "cd {{ deployment_dir }} && podman compose -f docker-compose.yml -f docker-compose.proxied-models.yml{% if enable_online_hosting %} -f docker-compose.online.yml{% endif %}{% if add_rag %} -f docker-compose.rag.yml{% endif %} systemd --action create-unit > '{{ ansible_env.HOME }}/.config/systemd/user/podman-compose@.service'"
       when: use_systemd
 
     - name: Reload user systemd daemon
@@ -442,7 +353,7 @@
           {% endif %}
           
           {% if add_rag %}
-          🔍 PGVector RAG support is enabled!
-          • PGVector API is accessible at http://localhost:4001
-          • Uses lemonade-nomic-embed-text-v2-moe-GGUF embedding model
+          🔍 Qdrant RAG support is enabled!
+          • Qdrant API is accessible at http://localhost:6333
+          • Uses GPU-accelerated vector search with AMD GPU support
           {% endif %}
