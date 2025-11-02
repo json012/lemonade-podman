@@ -222,21 +222,6 @@
       when: enable_online_hosting
 
 
-    - name: Copy postgres directory to target host
-      copy:
-        src: "{{ project_root }}/pg-vector/"
-        dest: "{{ deployment_dir }}/pg-vector/"
-        mode: "0644"
-      when: add_rag
-
-    - name: Copy patches directory to target host
-      copy:
-        src: "{{ project_root }}/patches/"
-        dest: "{{ deployment_dir }}/patches/"
-        mode: "0644"
-      when: add_rag
-
-
     - name: Get current user ID
       shell: id -u
       register: current_user_id
