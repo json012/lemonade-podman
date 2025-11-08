@@ -433,11 +433,11 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.1.12" }]
+requires-dist = [{ name = "lemonade-sdk", specifier = ">=8.2.1" }]
 
 [[package]]
 name = "lemonade-sdk"
-version = "8.1.12"
+version = "8.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -454,6 +454,7 @@ dependencies = [
     { name = "psutil" },
     { name = "py-cpuinfo" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "pytz" },
     { name = "pyyaml" },
     { name = "rumps", marker = "sys_platform == 'darwin'" },
@@ -465,9 +466,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/34/59/7c4c129387ca65d6981bdd1ad0bf59f1185f4ed5cd16f4dc05494e085944/lemonade_sdk-8.1.12.tar.gz", hash = "sha256:84d76a649fe375603ac0e2809ff1be22599f534471693058504b4a72b3ce97b7", size = 285827, upload-time = "2025-10-08T20:49:11.323Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/ef/91bca42e6a012d4538897ec236f8b41b1da5eccfaa9906ee36cab49e031b/lemonade_sdk-8.2.1.tar.gz", hash = "sha256:797049c1b128727c286efe41c0de9d22d54fbb2ea9b29826468e018dc55e4294", size = 296878, upload-time = "2025-11-05T21:57:34.174Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/65/8690b31f4da1f6040e703e57af5a16894959e9fde1a086b7d8d13b4debf2/lemonade_sdk-8.1.12-py3-none-any.whl", hash = "sha256:5276ed3bd4a7e84b99dd84bc88483e49819afb31cc3509c510ae69e48b24e72c", size = 315696, upload-time = "2025-10-08T20:49:09.895Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/ae/972aa747e6f4dd5a7cd4d495b052b368c9ab343f22104088c3ab72a5d4f8/lemonade_sdk-8.2.1-py3-none-any.whl", hash = "sha256:3d524a7c37d2708db4bee1579050d04a4e56d050cd83c69aa147c824c6f946ea", size = 327908, upload-time = "2025-11-05T21:57:33.015Z" },
 ]
 
 [[package]]
@@ -924,6 +925,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f6/b0/4bc07ccd3572a2f9df7e6782f52b0c6c90dcbb803ac4a167702d7d0dfe1e/python_dotenv-1.1.1.tar.gz", hash = "sha256:a8a6399716257f45be6a007360200409fce5cda2661e3dec71d23dc15f6189ab", size = 41978, upload-time = "2025-06-24T04:21:07.341Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/ed/539768cf28c661b5b068d66d96a2f155c4971a5d55684a514c1a0e0dec2f/python_dotenv-1.1.1-py3-none-any.whl", hash = "sha256:31f23644fe2602f88ff55e1f5c79ba497e01224ee7737937930c448e4d0e24dc", size = 20556, upload-time = "2025-06-24T04:21:06.073Z" },
+]
+
+[[package]]
+name = "python-multipart"
+version = "0.0.20"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/87/f44d7c9f274c7ee665a29b885ec97089ec5dc034c7f3fafa03da9e39a09e/python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13", size = 37158, upload-time = "2024-12-16T19:45:46.972Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/58/38b5afbc1a800eeea951b9285d3912613f2603bdf897a4ab0f4bd7f405fc/python_multipart-0.0.20-py3-none-any.whl", hash = "sha256:8a62d3a8335e06589fe01f2a3e178cdcc632f3fbe0d492ad9ee0ec35aab1f104", size = 24546, upload-time = "2024-12-16T19:45:44.423Z" },
 ]
 
 [[package]]
