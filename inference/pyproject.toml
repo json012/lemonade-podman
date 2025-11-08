@@ -6,8 +6,11 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "accelerate>=1.11.0",
+    "detoxify>=0.5.2",
     "fastapi[standard]>=0.120.0",
+    "guardrails-ai>=0.6.7",
     "hf-transfer>=0.1.9",
+    "nltk>=3.9.2",
     "torch>=2.9.0",
     "transformers>=4.57.1",
     "uvicorn[standard]>=0.38.0",

@@ -13,7 +13,7 @@ from app.src.dependencies import verify_api_key
 
 router = APIRouter(
     prefix="/inference",
-    tags=["inference"],
+    tags=["Direct Inference"],
 )
 
 
