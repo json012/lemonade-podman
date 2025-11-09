@@ -28,8 +28,11 @@ services:
       LITELLM_REDIS_PASSWORD: ${LITELLM_REDIS_PASSWORD}
       USE_PRISMA_MIGRATE: true
       DEFAULT_NUM_WORKERS_LITELLM_PROXY: ${LITELLM_DEFAULT_WORKERS}
+      CUSTOM_GUARDRAIL_API: http://inference:8000
+      CUSTOM_GUARDRAIL_API_KEY: ${INFERENCE_API_KEY}
     volumes:
       - ./litellm.yaml:/app/config.yaml:Z
+      - ./custom_guardrail.py:/app/custom_guardrail.py:Z
     networks:
       - litellm-network
       - litellm-db-network
@@ -70,6 +73,8 @@ services:
   inference:
     build:
       context: ./inference
+      args:
+        - GUARDRAILS_TOKEN=${GUARDRAILS_TOKEN}
     container_name: inference
     image: inference:latest
     devices:

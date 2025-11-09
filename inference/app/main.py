@@ -16,8 +16,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Inference API",
-    description="API for inference tasks",
+    title="Guardrails API",
+    description="Serves LLM guardrails",
     #     docs_url=None,
     #     redoc_url=None,
     #     openapi_url=None,

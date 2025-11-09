@@ -201,6 +201,12 @@
         dest: "{{ deployment_dir }}/litellm.yaml"
         mode: "0644"
 
+    - name: Copy custom_guardrail.py to target host
+      copy:
+        src: "{{ project_root }}/custom_guardrail.py"
+        dest: "{{ deployment_dir }}/custom_guardrail.py"
+        mode: "0644"
+
     - name: Copy inference directory to target host
       synchronize:
         src: "{{ project_root }}/inference/"

@@ -200,6 +200,18 @@ router_settings:
     {"gpt-oss-20b-mxfp4-GGUF": ["o3-mini"]},
   ]
 
+guardrails:
+  - guardrail_name: "inference/prompt_injection"
+    litellm_params:
+      guardrail: custom_guardrail.CustomGuardrailAPI
+      mode: "pre_call"
+      default_on: false
+  - guardrail_name: "inference/non_english"
+    litellm_params:
+      guardrail: custom_guardrail.CustomGuardrailAPI
+      mode: "pre_call"
+      default_on: false
+
 # Model routing configuration
 model_list:
 EOF
