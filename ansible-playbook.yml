@@ -207,10 +207,10 @@
         dest: "{{ deployment_dir }}/custom_guardrail.py"
         mode: "0644"
 
-    - name: Copy inference directory to target host
+    - name: Copy guardrails-api directory to target host
       synchronize:
-        src: "{{ project_root }}/inference/"
-        dest: "{{ deployment_dir }}/inference/"
+        src: "{{ project_root }}/guardrails-api/"
+        dest: "{{ deployment_dir }}/guardrails-api/"
         rsync_opts:
           - "--exclude=__pycache__"
           - "--exclude=.venv"

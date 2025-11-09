@@ -38,7 +38,7 @@ class CustomGuardrailAPI(CustomGuardrail):
         **kwargs,
     ):
         self.api_endpoint = guardrail_name
-        self.api_base = os.environ.get("CUSTOM_GUARDRAIL_API", "http://inference:8000")
+        self.api_base = os.environ.get("CUSTOM_GUARDRAIL_API", "http://guardrails:8000")
         self.api_key = os.environ.get("CUSTOM_GUARDRAIL_API_KEY", None)
 
         if not Endpoint(guardrail_name):

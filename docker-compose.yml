@@ -28,7 +28,7 @@ services:
       LITELLM_REDIS_PASSWORD: ${LITELLM_REDIS_PASSWORD}
       USE_PRISMA_MIGRATE: true
       DEFAULT_NUM_WORKERS_LITELLM_PROXY: ${LITELLM_DEFAULT_WORKERS}
-      CUSTOM_GUARDRAIL_API: http://inference:8000
+      CUSTOM_GUARDRAIL_API: http://guardrails:8000
       CUSTOM_GUARDRAIL_API_KEY: ${INFERENCE_API_KEY}
     volumes:
       - ./litellm.yaml:/app/config.yaml:Z
@@ -70,19 +70,18 @@ services:
       timeout: 5s
       retries: 5
 
-  inference:
+  guardrails:
     build:
-      context: ./inference
+      context: ./guardrails-api
       args:
         - GUARDRAILS_TOKEN=${GUARDRAILS_TOKEN}
-    container_name: inference
-    image: inference:latest
+    container_name: guardrails-api
+    image: guardrails-api:latest
     devices:
       - /dev/kfd:/dev/kfd
     restart: always
     environment:
-      INFERENCE_HOST: ${INFERENCE_HOST}
-      API_KEY: ${INFERENCE_API_KEY}
+      API_KEY: ${GUARDRAILS_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s

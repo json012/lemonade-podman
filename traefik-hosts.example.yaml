@@ -2,27 +2,40 @@
 # Copy this file to traefik-hosts.yaml and edit it to add your hosts
 # Replace "example.com" with your domain in two places
 
+# Example Traefik hosts file
+# Copy this file to traefik-hosts.yaml and edit it to add your hosts
+# Replace "example.com" with your domain in two places
+
 http:
   services:
     litellm:
       loadBalancer:
         servers:
         - url: http://litellm:4000
-    litellm-pgvector:
+    qdrant:
       loadBalancer:
         servers:
-        - url: http://litellm-pgvector:4001
+        - url: http://qdrant:6333
+    guardrails:
+      loadBalancer:
+        servers:
+        - url: http://guardrails:8000
   routers:
     litellm:
       rule: Host(`llm.example.com`)
       service: litellm
       middlewares:
         - litellm
-    litellm-pgvector:
+    qdrant:
       rule: Host(`rag.example.com`)
-      service: litellm-pgvector
+      service: qdrant
       middlewares:
-        - litellm-pgvector
+        - qdrant
+    guardrails:
+      rule: Host(`guard.example.com`)
+      service: guardrails
+      middlewares:
+        - guardrails
   middlewares:
     litellm:
       # Add some security headers
@@ -38,10 +51,24 @@ http:
         customFrameOptionsValue: SAMEORIGIN
         customRequestHeaders:
           X-Forwarded-Proto: https
-    litellm-pgvector:
+    qdrant:
       # Add some security headers
       headers:
         SSLHost: rag.example.com
+        SSLRedirect: true
+        STSSeconds: 315360000
+        browserXSSFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        STSIncludeSubdomains: true
+        STSPreload: true
+        customFrameOptionsValue: SAMEORIGIN
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+    guardrails:
+      # Add some security headers
+      headers:
+        SSLHost: guard.example.com
         SSLRedirect: true
         STSSeconds: 315360000
         browserXSSFilter: true

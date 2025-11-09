@@ -68,16 +68,16 @@ services:
       - litellm-network
       - traefik-network
 
-  inference:
+  guardrails:
     build:
-      context: ./inference
-    container_name: inference
-    image: inference:latest
+      context: ./guardrails-api
+    container_name: guardrails-api
+    image: guardrails-api:latest
     devices:
       - /dev/kfd:/dev/kfd
     restart: always
     environment:
-      INFERENCE_HOST: ${INFERENCE_HOST}
+      INFERENCE_HOST: http://guardrails:8000
       API_KEY: ${INFERENCE_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
@@ -87,20 +87,20 @@ services:
       retries: 3
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.inference.rule=Host(`${INFERENCE_HOST}`)"
-      - "traefik.http.routers.inference.entrypoints=web"
-      - "traefik.http.services.inference.loadbalancer.server.port=8000"
-      - "traefik.http.middlewares.inference-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
-      - "traefik.http.middlewares.inference-headers.headers.sslhost=${INFERENCE_HOST}"
-      - "traefik.http.middlewares.inference-headers.headers.sslredirect=true"
-      - "traefik.http.middlewares.inference-headers.headers.stsseconds=315360000"
-      - "traefik.http.middlewares.inference-headers.headers.browserxssfilter=true"
-      - "traefik.http.middlewares.inference-headers.headers.contenttypenosniff=true"
-      - "traefik.http.middlewares.inference-headers.headers.forcestsheader=true"
-      - "traefik.http.middlewares.inference-headers.headers.stsincludesubdomains=true"
-      - "traefik.http.middlewares.inference-headers.headers.stspreload=true"
-      - "traefik.http.middlewares.inference-headers.headers.customframeoptionsvalue=SAMEORIGIN"
-      - "traefik.http.routers.inference.middlewares=inference-headers"
+      - "traefik.http.routers.guardrails.rule=Host(`${GUARDRAILS_HOST}`)"
+      - "traefik.http.routers.guardrails.entrypoints=web"
+      - "traefik.http.services.guardrails.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.guardrails-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.guardrails-headers.headers.sslhost=${GUARDRAILS_HOST}"
+      - "traefik.http.middlewares.guardrails-headers.headers.sslredirect=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.stsseconds=315360000"
+      - "traefik.http.middlewares.guardrails-headers.headers.browserxssfilter=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.contenttypenosniff=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.forcestsheader=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.stsincludesubdomains=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.stspreload=true"
+      - "traefik.http.middlewares.guardrails-headers.headers.customframeoptionsvalue=SAMEORIGIN"
+      - "traefik.http.routers.guardrails.middlewares=guardrails-headers"
     networks:
       - litellm-network
       - traefik-network
