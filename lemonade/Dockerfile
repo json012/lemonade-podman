@@ -1,48 +1,22 @@
-# Same base image as official llama.cpp
-FROM ubuntu:24.04
+FROM ghcr.io/ggml-org/llama.cpp:server-vulkan
 
-# Install system dependencies including Vulkan support
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv python3-pip pipx \
-    curl wget unzip \
-    build-essential cmake \
-    vulkan-tools vulkan-validationlayers mesa-vulkan-drivers \
-    libvulkan-dev pciutils \
+    wget unzip \
  && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /opt/lemonade && chown -R ubuntu:ubuntu /opt/lemonade
+RUN wget https://github.com/lemonade-sdk/lemonade/releases/latest/download/lemonade-server-minimal_9.1.1_amd64.deb
+RUN dpkg -i lemonade-server-minimal_9.1.1_amd64.deb
 
-USER ubuntu
-
-RUN pipx install uv
-ENV PATH="/home/ubuntu/.local/bin:$PATH"
-
-# Use /opt/lemonade to avoid conflicts with base image's /app
-RUN mkdir -p /opt/lemonade
-WORKDIR /opt/lemonade
-
-# Locked Python deps
-COPY --chown=ubuntu:ubuntu pyproject.toml uv.lock .
-RUN uv sync --no-dev --frozen
-
-# If this isn't done at build time, lemonade server will try to download it at runtime.
-RUN uv run lemonade-install --llamacpp vulkan
-
-# Ensure the entire .venv directory is accessible to non-root users
-# This is crucial when using UserNS=keep-id in the quadlet
-RUN chmod -R 755 /opt/lemonade/.venv && \
-    chown -R ubuntu:ubuntu /opt/lemonade/.venv
-
-# Create and fix permissions for huggingface cache directory,
-# so can map a shared persistent volume of models into it
-RUN mkdir -p /home/ubuntu/.cache/huggingface/hub && \
-    chmod -R 755 /home/ubuntu/.cache/huggingface/hub
+# Add to PATH
+ENV PATH="/usr/local/lemonade/bin:${PATH}"
 
 # Lemonade runtime envs
 ENV LEMONADE_HOST=0.0.0.0 \
     LEMONADE_PORT=8000 \
-    LEMONADE_LLAMACPP=vulkan
+    LEMONADE_LLAMACPP=vulkan \
+    LEMONADE_LLAMACPP_VULKAN_BIN=/app/llama-server
 
 EXPOSE 8000
 
-CMD ["uv", "run", "lemonade-server-dev", "serve", "--llamacpp", "vulkan"]
+ENTRYPOINT ["lemonade-server"]
+CMD ["serve", "--llamacpp", "vulkan"]
