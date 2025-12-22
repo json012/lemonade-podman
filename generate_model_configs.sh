@@ -308,13 +308,8 @@ EOF
     container_name: $container_name
     image: ghcr.io/json012/lemonade:latest
     pull_policy: newer
-    user: ubuntu
-    environment:
-      LEMONADE_LLAMACPP: vulkan
-      LEMONADE_HOST: 0.0.0.0
-      LEMONADE_CACHE: /home/ubuntu/.cache
     volumes:
-      - lemonade-cache:/home/ubuntu/.cache/huggingface/hub
+      - lemonade-cache:/root/.cache/huggingface/hub
     networks:
       - litellm-network
     devices:
@@ -322,10 +317,7 @@ EOF
       - /dev/dri:/dev/dri
     restart: always
     command: [
-      "uv",
-      "run",
-      "lemonade-server-dev",
-      "run",
+      "serve",
       "$model",
       "--llamacpp",
       "vulkan",
